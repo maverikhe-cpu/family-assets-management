@@ -11,6 +11,7 @@ import { useAssetStore } from '@/stores/assets'
 import { useTransactionStore } from '@/stores/transactions'
 import { useMemberStore } from '@/stores/members'
 import { themeOverrides } from '@/theme'
+import AppIcon from '@/components/AppIcon.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -32,32 +33,41 @@ const checkMobile = () => {
 const theme = null
 const inlineThemeOverrides = themeOverrides
 
+// 菜单图标映射
+const menuIcons: Record<string, string> = {
+  Dashboard: 'lucide:layout-dashboard',
+  Assets: 'lucide:wallet',
+  Transactions: 'lucide:receipt',
+  Reports: 'lucide:bar-chart-3',
+  Settings: 'lucide:settings'
+}
+
 // 菜单选项
 const menuOptions = [
   {
     label: '仪表盘',
     key: 'Dashboard',
-    icon: () => h('span', '📊')
+    icon: () => h(AppIcon, { name: menuIcons.Dashboard!, size: 20 })
   },
   {
     label: '资产管理',
     key: 'Assets',
-    icon: () => h('span', '💰')
+    icon: () => h(AppIcon, { name: menuIcons.Assets!, size: 20 })
   },
   {
     label: '收支记录',
     key: 'Transactions',
-    icon: () => h('span', '📝')
+    icon: () => h(AppIcon, { name: menuIcons.Transactions!, size: 20 })
   },
   {
     label: '报表分析',
     key: 'Reports',
-    icon: () => h('span', '📈')
+    icon: () => h(AppIcon, { name: menuIcons.Reports!, size: 20 })
   },
   {
     label: '设置',
     key: 'Settings',
-    icon: () => h('span', '⚙️')
+    icon: () => h(AppIcon, { name: menuIcons.Settings!, size: 20 })
   }
 ]
 
@@ -115,7 +125,7 @@ function toggleCollapsed() {
         @update:collapsed="isMobile ? toggleCollapsed() : undefined"
       >
         <div class="logo">
-          <span class="logo-icon">💎</span>
+          <AppIcon name="lucide:gem" :size="24" class="logo-icon" />
           <h1 v-show="!collapsed" class="logo-title">家庭资产管家</h1>
         </div>
         <n-menu
@@ -131,8 +141,8 @@ function toggleCollapsed() {
       <!-- 移动端顶部栏 -->
       <div v-if="isMobile" class="mobile-header">
         <button class="menu-toggle" @click="toggleCollapsed">
-          <span v-if="collapsed">☰</span>
-          <span v-else>✕</span>
+          <AppIcon v-if="collapsed" name="lucide:menu" :size="20" />
+          <AppIcon v-else name="lucide:x" :size="20" />
         </button>
         <h1 class="mobile-title">家庭资产管家</h1>
         <div class="mobile-spacer"></div>
@@ -141,7 +151,11 @@ function toggleCollapsed() {
       <!-- 主内容区 -->
       <n-layout-content class="app-content" :class="{ 'app-content--mobile': isMobile }">
         <div class="content-wrapper">
-          <router-view />
+          <router-view v-slot="{ Component }">
+            <transition name="page" mode="out-in">
+              <component :is="Component" :key="route.path" />
+            </transition>
+          </router-view>
         </div>
         <div class="footer">
           家庭资产管家 v1.0 · By CC
@@ -188,9 +202,8 @@ function toggleCollapsed() {
 }
 
 .logo-icon {
-  font-size: 24px;
-  line-height: 1;
   flex-shrink: 0;
+  color: var(--color-primary);
 }
 
 .logo-title {
@@ -203,6 +216,16 @@ function toggleCollapsed() {
 
 .app-menu {
   padding: var(--spacing-md) 0;
+}
+
+/* 菜单项图标颜色 */
+.app-menu :deep(.n-menu-item-content__icon) {
+  color: var(--n-text-color-2);
+  transition: color 0.2s ease;
+}
+
+.app-menu :deep(.n-menu-item--selected .n-menu-item-content__icon) {
+  color: var(--color-primary);
 }
 
 /* 移动端顶部栏 */
@@ -226,14 +249,18 @@ function toggleCollapsed() {
   height: 36px;
   border: none;
   background: none;
-  font-size: 20px;
   cursor: pointer;
   color: var(--n-text-color);
   border-radius: var(--radius-md);
-  transition: background 0.2s;
+  transition: background 0.2s ease, transform 0.1s ease;
 }
 
 .menu-toggle:active {
+  background: var(--n-color-modal);
+  transform: scale(0.95);
+}
+
+.menu-toggle:hover {
   background: var(--n-color-modal);
 }
 
@@ -300,5 +327,21 @@ function toggleCollapsed() {
     background: rgba(0, 0, 0, 0.5);
     z-index: -1;
   }
+}
+
+/* 页面过渡动画 */
+.page-enter-active,
+.page-leave-active {
+  transition: all 0.2s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 </style>
