@@ -39,7 +39,7 @@ const formValue = ref({
   amount: 0,
   categoryId: '',
   accountId: '',
-  date: new Date(),
+  date: Date.now(),
   notes: '',
   tags: [] as string[]
 })
@@ -135,7 +135,7 @@ function handleAdd(type?: 'income' | 'expense') {
     amount: 0,
     categoryId: '',
     accountId: '',
-    date: new Date(),
+    date: Date.now(),
     notes: '',
     tags: []
   }
@@ -150,10 +150,10 @@ function handleEdit(transaction: Transaction) {
     type: transaction.type as 'income' | 'expense',
     amount: transaction.amount,
     categoryId: transaction.categoryId,
-    accountId: transaction.accountId,
-    date: new Date(transaction.date),
-    notes: transaction.notes || '',
-    tags: transaction.tags || []
+    accountId: transaction.accountId ?? '',
+    date: new Date(transaction.date).getTime(),
+    notes: transaction.notes ?? '',
+    tags: transaction.tags ?? []
   }
   showEditModal.value = true
 }
@@ -161,20 +161,31 @@ function handleEdit(transaction: Transaction) {
 async function handleSubmit() {
   await formRef.value?.validate()
 
-  const accountId = formValue.value.accountId || accountOptions.value[0]?.value
+  const accountId = formValue.value.accountId || accountOptions.value[0]?.value || ''
+  const dateStr = dayjs(formValue.value.date as number).toISOString()
 
   if (editingTransaction.value) {
     await transactionStore.updateTransaction(editingTransaction.value.id, {
-      ...formValue.value,
-      accountId
+      type: formValue.value.type,
+      amount: formValue.value.amount,
+      categoryId: formValue.value.categoryId,
+      accountId,
+      memberId: 'user_1',
+      date: dateStr,
+      notes: formValue.value.notes,
+      tags: formValue.value.tags
     })
     showEditModal.value = false
   } else {
     await transactionStore.addTransaction({
-      ...formValue.value,
+      type: formValue.value.type,
+      amount: formValue.value.amount,
+      categoryId: formValue.value.categoryId,
       accountId,
       memberId: 'user_1',
-      date: dayjs(formValue.value.date).toISOString()
+      date: dateStr,
+      notes: formValue.value.notes,
+      tags: formValue.value.tags
     })
     showAddModal.value = false
   }
@@ -185,7 +196,7 @@ async function handleSubmit() {
     amount: 0,
     categoryId: '',
     accountId: '',
-    date: new Date(),
+    date: Date.now(),
     notes: '',
     tags: []
   }

@@ -15,12 +15,10 @@ import {
   NSelect,
   NDatePicker,
   NPopconfirm,
-  NTooltip,
   NInputGroup,
   NEmpty,
   type DataTableColumns,
-  type FormInst,
-  type SortOrder
+  type FormInst
 } from 'naive-ui'
 import { useAssetStore } from '@/stores/assets'
 import { useMemberStore } from '@/stores/members'
@@ -38,15 +36,15 @@ const formRef = ref<FormInst | null>(null)
 const editingAsset = ref<Asset | null>(null)
 
 // 批量选择
-const checkedRowKeys = ref<string[]>([])
+const checkedRowKeys = ref<Array<string | number>>([])
 const showBatchActions = computed(() => checkedRowKeys.value.length > 0)
 
 // 搜索和筛选
 const searchText = ref('')
-const filterCategory = ref<string | null>(null)
-const filterCurrency = ref<string | null>(null)
-const filterStatus = ref<string | null>(null)
-const filterMember = ref<string | null>(null)
+const filterCategory = ref<string>('')
+const filterCurrency = ref<string>('')
+const filterStatus = ref<string>('')
+const filterMember = ref<string>('')
 
 // 初始化加载成员
 onMounted(async () => {
@@ -55,12 +53,12 @@ onMounted(async () => {
 
 // 排序
 const sortField = ref<string>('purchaseDate')
-const sortOrder = ref<SortOrder>('descend')
+const sortOrder = ref<'ascend' | 'descend'>('descend')
 
 // 筛选选项
 const categoryFilterOptions = computed(() => {
   return [
-    { label: '全部分类', value: null },
+    { label: '全部分类', value: '' },
     ...assetStore.categories
       .filter(c => c.parentId)
       .map(c => ({ label: `${c.icon} ${c.name}`, value: c.id }))
@@ -68,7 +66,7 @@ const categoryFilterOptions = computed(() => {
 })
 
 const currencyFilterOptions = [
-  { label: '全部币种', value: null },
+  { label: '全部币种', value: '' },
   { label: 'CNY (¥)', value: 'CNY' },
   { label: 'HKD (HK$)', value: 'HKD' },
   { label: 'USD ($)', value: 'USD' },
@@ -77,7 +75,7 @@ const currencyFilterOptions = [
 ]
 
 const statusFilterOptions = [
-  { label: '全部状态', value: null },
+  { label: '全部状态', value: '' },
   { label: '持有中', value: 'active' },
   { label: '已处置', value: 'disposed' },
   { label: '待处理', value: 'pending' }
@@ -86,7 +84,7 @@ const statusFilterOptions = [
 // 成员筛选选项
 const memberFilterOptions = computed(() => {
   return [
-    { label: '全部成员', value: null },
+    { label: '全部成员', value: '' },
     ...memberStore.members.map(m => ({
       label: m.name,
       value: m.id
@@ -123,22 +121,22 @@ const filteredAndSortedAssets = computed(() => {
   }
 
   // 分类过滤
-  if (filterCategory.value) {
+  if (filterCategory.value !== '') {
     result = result.filter(asset => asset.categoryId === filterCategory.value)
   }
 
   // 币种过滤
-  if (filterCurrency.value) {
+  if (filterCurrency.value !== '') {
     result = result.filter(asset => asset.currency === filterCurrency.value)
   }
 
   // 状态过滤
-  if (filterStatus.value) {
+  if (filterStatus.value !== '') {
     result = result.filter(asset => asset.status === filterStatus.value)
   }
 
   // 成员过滤
-  if (filterMember.value) {
+  if (filterMember.value !== '') {
     result = result.filter(asset => asset.holderId === filterMember.value)
   }
 
@@ -169,10 +167,10 @@ const filteredAndSortedAssets = computed(() => {
 // 清空筛选
 function handleClearFilters() {
   searchText.value = ''
-  filterCategory.value = null
-  filterCurrency.value = null
-  filterStatus.value = null
-  filterMember.value = null
+  filterCategory.value = ''
+  filterCurrency.value = ''
+  filterStatus.value = ''
+  filterMember.value = ''
   sortField.value = 'purchaseDate'
   sortOrder.value = 'descend'
 }
@@ -206,7 +204,7 @@ const formValue = ref({
   initialValue: 0,
   currentValue: 0,
   currency: 'CNY',
-  purchaseDate: new Date(),
+  purchaseDate: Date.now(),
   notes: ''
 })
 
@@ -279,13 +277,14 @@ const columns: DataTableColumns<Asset> = [
     key: 'status',
     width: 100,
     render: (row) => {
-      const statusMap: Record<string, { type: 'success' | 'warning' | 'error'; text: string }> = {
+      const statusConfig: Record<string, { type: 'success' | 'warning' | 'error'; text: string }> = {
         active: { type: 'success', text: '持有中' },
         disposed: { type: 'error', text: '已处置' },
         pending: { type: 'warning', text: '待处理' }
       }
-      const status = statusMap[row.status] || statusMap.active
-      return h(NTag, { type: status.type }, { default: () => status.text })
+      const rowStatus = row.status!
+      const config = statusConfig[rowStatus] || statusConfig.active!
+      return h(NTag, { type: config.type }, { default: () => config.text })
     }
   },
   {
@@ -322,7 +321,7 @@ function handleAdd() {
     initialValue: 0,
     currentValue: 0,
     currency: 'CNY',
-    purchaseDate: new Date(),
+    purchaseDate: Date.now(),
     notes: ''
   }
   editingAsset.value = null
@@ -338,7 +337,7 @@ function handleEdit(asset: Asset) {
     initialValue: asset.initialValue,
     currentValue: asset.currentValue,
     currency: asset.currency,
-    purchaseDate: new Date(asset.purchaseDate),
+    purchaseDate: new Date(asset.purchaseDate).getTime(),
     notes: asset.notes || ''
   }
   showEditModal.value = true
@@ -347,15 +346,31 @@ function handleEdit(asset: Asset) {
 async function handleSubmit() {
   await formRef.value?.validate()
 
+  const purchaseDateStr = dayjs(formValue.value.purchaseDate as number).toISOString()
+
   if (editingAsset.value) {
-    await assetStore.updateAsset(editingAsset.value.id, formValue.value)
+    await assetStore.updateAsset(editingAsset.value.id, {
+      name: formValue.value.name,
+      categoryId: formValue.value.categoryId,
+      holderId: formValue.value.holderId,
+      initialValue: formValue.value.initialValue,
+      currentValue: formValue.value.currentValue,
+      currency: formValue.value.currency,
+      purchaseDate: purchaseDateStr,
+      notes: formValue.value.notes
+    })
     showEditModal.value = false
   } else {
     await assetStore.addAsset({
-      ...formValue.value,
+      name: formValue.value.name,
+      categoryId: formValue.value.categoryId,
       holderId: formValue.value.holderId,
+      initialValue: formValue.value.initialValue,
+      currentValue: formValue.value.currentValue,
+      currency: formValue.value.currency,
+      purchaseDate: purchaseDateStr,
       status: 'active',
-      purchaseDate: dayjs(formValue.value.purchaseDate).toISOString()
+      notes: formValue.value.notes
     })
     showAddModal.value = false
   }
@@ -368,7 +383,7 @@ async function handleDelete(id: string) {
 // 批量删除
 async function handleBatchDelete() {
   for (const id of checkedRowKeys.value) {
-    await assetStore.deleteAsset(id)
+    await assetStore.deleteAsset(String(id))
   }
   checkedRowKeys.value = []
 }
@@ -486,7 +501,7 @@ function getCurrencySymbol(currency: string) {
         :data="filteredAndSortedAssets"
         :row-key="(row: Asset) => row.id"
         :checked-row-keys="checkedRowKeys"
-        @update:checked-row-keys="(keys: string[]) => checkedRowKeys = keys"
+        @update:checked-row-keys="(keys: Array<string | number>) => checkedRowKeys = keys"
         @row-click="handleRowClick"
       />
       <NEmpty v-else description="没有找到符合条件的资产" />

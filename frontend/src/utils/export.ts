@@ -1,6 +1,5 @@
 import * as XLSX from 'xlsx'
 import type { Asset, Transaction } from '@/types'
-import { formatCurrency } from './currency'
 import dayjs from 'dayjs'
 
 /**

@@ -40,13 +40,16 @@ export const useTransactionStore = defineStore('transactions', () => {
         result[t.categoryId] = {
           amount: 0,
           count: 0,
-          color: cat?.color || '#999',
-          icon: cat?.icon || '📁',
-          name: cat?.name || '未知'
+          color: cat?.color ?? '#999',
+          icon: cat?.icon ?? '📁',
+          name: cat?.name ?? '未知'
         }
       }
-      result[t.categoryId].amount += t.amount
-      result[t.categoryId].count++
+      const entry = result[t.categoryId]
+      if (entry) {
+        entry.amount += t.amount
+        entry.count++
+      }
     }
     return result
   })
@@ -60,13 +63,16 @@ export const useTransactionStore = defineStore('transactions', () => {
         result[t.categoryId] = {
           amount: 0,
           count: 0,
-          color: cat?.color || '#999',
-          icon: cat?.icon || '📁',
-          name: cat?.name || '未知'
+          color: cat?.color ?? '#999',
+          icon: cat?.icon ?? '📁',
+          name: cat?.name ?? '未知'
         }
       }
-      result[t.categoryId].amount += t.amount
-      result[t.categoryId].count++
+      const entry = result[t.categoryId]
+      if (entry) {
+        entry.amount += t.amount
+        entry.count++
+      }
     }
     return result
   })

@@ -1,13 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { NCard, NGrid, NGridItem, NStatistic, NNumberAnimation, NSpace, NButton, NEmpty } from 'naive-ui'
+import { NCard, NGrid, NGridItem, NStatistic, NSpace, NButton, NEmpty } from 'naive-ui'
 import { useAssetStore } from '@/stores/assets'
-import { useTransactionStore } from '@/stores/transactions'
 import AssetDistributionChart from '@/components/AssetDistributionChart.vue'
-import { formatCurrency } from '@/utils/currency'
 
 const assetStore = useAssetStore()
-const transactionStore = useTransactionStore()
 
 const stats = computed(() => assetStore.statistics)
 const distribution = computed(() => assetStore.distribution)

@@ -42,11 +42,14 @@ export function convertCurrency(
 ): number {
   if (from === to) return amount
 
+  const fromRate = exchangeRates[from] ?? 1
+  const toRate = exchangeRates[to] ?? 1
+
   // 先转换为CNY（基准货币）
-  const amountInCny = amount * exchangeRates[from]
+  const amountInCny = amount * fromRate
 
   // 再从CNY转换为目标货币
-  return amountInCny / exchangeRates[to]
+  return amountInCny / toRate
 }
 
 /**

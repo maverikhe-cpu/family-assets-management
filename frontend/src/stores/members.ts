@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Member } from '@/types'
-import * as db from '@/db'
 
 export const useMemberStore = defineStore('members', () => {
   const members = ref<Member[]>([])
@@ -82,12 +81,19 @@ export const useMemberStore = defineStore('members', () => {
     return newMember
   }
 
-  async function updateMember(id: string, updates: Partial<Member>) {
+  async function updateMember(id: string, updates: Partial<Omit<Member, 'id'>>) {
     const index = members.value.findIndex(m => m.id === id)
     if (index !== -1) {
+      const current = members.value[index]
+      if (!current) return
       members.value[index] = {
-        ...members.value[index],
-        ...updates,
+        id: current.id,
+        name: updates.name ?? current.name,
+        role: updates.role ?? current.role,
+        color: updates.color ?? current.color,
+        order: updates.order ?? current.order,
+        avatar: updates.avatar ?? current.avatar,
+        createdAt: current.createdAt,
         updatedAt: new Date().toISOString()
       }
       saveMembers()

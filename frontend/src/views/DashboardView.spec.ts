@@ -3,7 +3,6 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import DashboardView from './DashboardView.vue'
 import { useAssetStore } from '@/stores/assets'
-import { useTransactionStore } from '@/stores/transactions'
 
 // Mock vue-router
 vi.mock('vue-router', () => ({

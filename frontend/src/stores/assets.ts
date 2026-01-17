@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Asset, AssetCategory, AssetChange, AssetStatistics, AssetDistribution } from '@/types'
+import type { Asset, AssetCategory, AssetChange, AssetStatistics, AssetDistribution, AssetChangeStatistics, AssetChangeType } from '@/types'
 import * as db from '@/db'
-import { convertCurrency, formatCurrency } from '@/utils/currency'
+import { convertCurrency } from '@/utils/currency'
+import dayjs from 'dayjs'
 
 // 基准货币
 const BASE_CURRENCY = 'CNY'
@@ -168,6 +169,266 @@ export const useAssetStore = defineStore('assets', () => {
     return newChange
   }
 
+  /**
+   * 记录资产价值变更（自动计算盈亏）
+   */
+  async function recordValueChange(
+    assetId: string,
+    newValue: number,
+    type: AssetChangeType,
+    notes?: string
+  ) {
+    const asset = assets.value.find(a => a.id === assetId)
+    if (!asset) throw new Error('资产不存在')
+
+    const beforeValue = asset.currentValue
+    const afterValue = newValue
+    const amount = type === 'valuation_adjust' ? afterValue - beforeValue : afterValue
+
+    // 计算盈亏
+    let profitLoss: number | undefined
+    let profitLossRate: number | undefined
+
+    if (type === 'sell' || type === 'valuation_adjust') {
+      profitLoss = afterValue - beforeValue
+      profitLossRate = beforeValue > 0 ? (profitLoss / beforeValue) * 100 : 0
+    }
+
+    const change = await addAssetChange({
+      assetId,
+      type,
+      amount,
+      beforeValue,
+      afterValue,
+      profitLoss,
+      profitLossRate,
+      date: dayjs().format('YYYY-MM-DD'),
+      notes
+    })
+
+    // 更新资产当前价值
+    await updateAsset(assetId, { currentValue: newValue })
+
+    return change
+  }
+
+  /**
+   * 记录资产买入
+   */
+  async function recordBuy(
+    assetId: string,
+    amount: number,
+    date: string,
+    notes?: string
+  ) {
+    const asset = assets.value.find(a => a.id === assetId)
+    if (!asset) throw new Error('资产不存在')
+
+    const beforeValue = asset.currentValue
+    const afterValue = beforeValue + amount
+
+    await addAssetChange({
+      assetId,
+      type: 'buy',
+      amount,
+      beforeValue,
+      afterValue,
+      date,
+      notes
+    })
+
+    await updateAsset(assetId, { currentValue: afterValue })
+  }
+
+  /**
+   * 记录资产卖出
+   */
+  async function recordSell(
+    assetId: string,
+    amount: number,
+    date: string,
+    notes?: string
+  ) {
+    const asset = assets.value.find(a => a.id === assetId)
+    if (!asset) throw new Error('资产不存在')
+
+    const beforeValue = asset.currentValue
+    const afterValue = beforeValue - amount
+
+    if (afterValue < 0) throw new Error('卖出金额不能超过当前价值')
+
+    // 计算盈亏（需要记录原始买入价才能准确计算）
+    const profitLoss = 0
+    const profitLossRate = 0
+
+    await addAssetChange({
+      assetId,
+      type: 'sell',
+      amount,
+      beforeValue,
+      afterValue,
+      profitLoss,
+      profitLossRate,
+      date,
+      notes
+    })
+
+    await updateAsset(assetId, { currentValue: afterValue })
+  }
+
+  /**
+   * 记录资产转入
+   */
+  async function recordTransferIn(
+    assetId: string,
+    amount: number,
+    fromMemberId?: string,
+    date?: string,
+    notes?: string
+  ) {
+    const asset = assets.value.find(a => a.id === assetId)
+    if (!asset) throw new Error('资产不存在')
+
+    const beforeValue = asset.currentValue
+    const afterValue = beforeValue + amount
+
+    await addAssetChange({
+      assetId,
+      type: 'transfer_in',
+      amount,
+      beforeValue,
+      afterValue,
+      relatedAssetId: fromMemberId,
+      date: date || dayjs().format('YYYY-MM-DD'),
+      notes
+    })
+
+    await updateAsset(assetId, { currentValue: afterValue })
+  }
+
+  /**
+   * 记录资产转出
+   */
+  async function recordTransferOut(
+    assetId: string,
+    amount: number,
+    toMemberId?: string,
+    date?: string,
+    notes?: string
+  ) {
+    const asset = assets.value.find(a => a.id === assetId)
+    if (!asset) throw new Error('资产不存在')
+
+    const beforeValue = asset.currentValue
+    const afterValue = beforeValue - amount
+
+    if (afterValue < 0) throw new Error('转出金额不能超过当前价值')
+
+    await addAssetChange({
+      assetId,
+      type: 'transfer_out',
+      amount,
+      beforeValue,
+      afterValue,
+      relatedAssetId: toMemberId,
+      date: date || dayjs().format('YYYY-MM-DD'),
+      notes
+    })
+
+    await updateAsset(assetId, { currentValue: afterValue })
+  }
+
+  /**
+   * 记录资产处置
+   */
+  async function recordDispose(
+    assetId: string,
+    disposeValue: number,
+    date: string,
+    notes?: string
+  ) {
+    const asset = assets.value.find(a => a.id === assetId)
+    if (!asset) throw new Error('资产不存在')
+
+    const beforeValue = asset.currentValue
+    const profitLoss = disposeValue - beforeValue
+    const profitLossRate = beforeValue > 0 ? (profitLoss / beforeValue) * 100 : 0
+
+    await addAssetChange({
+      assetId,
+      type: 'dispose',
+      amount: disposeValue,
+      beforeValue,
+      afterValue: 0,
+      profitLoss,
+      profitLossRate,
+      date,
+      notes: notes || '资产处置'
+    })
+
+    // 更新资产状态为已处置
+    await updateAsset(assetId, { currentValue: 0, status: 'disposed' })
+  }
+
+  /**
+   * 获取资产变动统计
+   */
+  async function getChangeStatistics(assetId: string): Promise<AssetChangeStatistics> {
+    await loadChanges(assetId)
+
+    const assetChanges = changes.value
+    const totalChanges = assetChanges.length
+
+    // 计算总盈亏
+    let totalProfit = 0
+    let totalLoss = 0
+
+    for (const change of assetChanges) {
+      if (change.profitLoss) {
+        if (change.profitLoss > 0) {
+          totalProfit += change.profitLoss
+        } else {
+          totalLoss += Math.abs(change.profitLoss)
+        }
+      }
+    }
+
+    const netProfitLoss = totalProfit - totalLoss
+
+    // 计算平均盈利率
+    const profitRateChanges = assetChanges.filter(c => c.profitLossRate !== undefined)
+    const avgProfitRate = profitRateChanges.length > 0
+      ? profitRateChanges.reduce((sum, c) => sum + (c.profitLossRate || 0), 0) / profitRateChanges.length
+      : 0
+
+    // 找出最佳和最差表现
+    const sortedByProfit = [...assetChanges]
+      .filter(c => c.profitLoss !== undefined)
+      .sort((a, b) => (b.profitLoss || 0) - (a.profitLoss || 0))
+
+    const bestPerformingChange = sortedByProfit[0] || null
+    const worstPerformingChange = sortedByProfit[sortedByProfit.length - 1] || null
+
+    return {
+      totalChanges,
+      totalProfit,
+      totalLoss,
+      netProfitLoss,
+      avgProfitRate,
+      bestPerformingChange,
+      worstPerformingChange
+    }
+  }
+
+  /**
+   * 获取资产变动历史（用于图表）
+   */
+  function getChangeHistory(assetId: string) {
+    return changes.value
+      .filter(c => c.assetId === assetId)
+      .sort((a, b) => dayjs(a.date).isBefore(dayjs(b.date)) ? 1 : -1)
+  }
+
   function getCategoryById(id: string) {
     return categories.value.find(c => c.id === id)
   }
@@ -177,6 +438,21 @@ export const useAssetStore = defineStore('assets', () => {
       ...parent,
       children: categories.value.filter(c => c.parentId === parent.id)
     }))
+  }
+
+  // 变动类型名称映射
+  const changeTypeNames: Record<AssetChangeType, string> = {
+    buy: '买入',
+    sell: '卖出',
+    transfer_in: '转入',
+    transfer_out: '转出',
+    valuation_adjust: '估值调整',
+    depreciation: '折旧',
+    dispose: '处置'
+  }
+
+  function getChangeTypeName(type: AssetChangeType): string {
+    return changeTypeNames[type] || type
   }
 
   return {
@@ -202,6 +478,16 @@ export const useAssetStore = defineStore('assets', () => {
     deleteAsset,
     addAssetChange,
     getCategoryById,
-    getCategoryTree
+    getCategoryTree,
+    // 变动记录方法
+    recordValueChange,
+    recordBuy,
+    recordSell,
+    recordTransferIn,
+    recordTransferOut,
+    recordDispose,
+    getChangeStatistics,
+    getChangeHistory,
+    getChangeTypeName
   }
 })

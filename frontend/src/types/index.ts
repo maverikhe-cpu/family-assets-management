@@ -19,6 +19,8 @@ export interface AssetCategory {
   color: string
   isBuiltin: boolean
   order: number
+  createdAt: string
+  updatedAt: string
 }
 
 // 资产状态
@@ -43,7 +45,14 @@ export interface Asset {
 }
 
 // 资产变动类型
-export type AssetChangeType = 'buy' | 'sell' | 'transfer_in' | 'transfer_out' | 'valuation_adjust' | 'depreciation'
+export type AssetChangeType =
+  | 'buy'           // 购入
+  | 'sell'          // 卖出
+  | 'transfer_in'   // 转入
+  | 'transfer_out'  // 转出
+  | 'valuation_adjust'  // 估值调整
+  | 'depreciation'  // 折旧
+  | 'dispose'       // 处置
 
 // 资产变动记录
 export interface AssetChange {
@@ -53,11 +62,24 @@ export interface AssetChange {
   amount: number
   beforeValue: number
   afterValue: number
+  profitLoss?: number  // 盈亏金额
+  profitLossRate?: number  // 盈亏率百分比
   relatedTransactionId?: string
   relatedAssetId?: string
   date: string
   notes?: string
   createdAt: string
+}
+
+// 资产统计（扩展）
+export interface AssetChangeStatistics {
+  totalChanges: number
+  totalProfit: number
+  totalLoss: number
+  netProfitLoss: number
+  avgProfitRate: number
+  bestPerformingChange: AssetChange | null
+  worstPerformingChange: AssetChange | null
 }
 
 // 收支分类
@@ -70,6 +92,8 @@ export interface TransactionCategory {
   isBuiltin: boolean
   parentId: string | null
   order: number
+  createdAt: string
+  updatedAt: string
 }
 
 // 交易类型

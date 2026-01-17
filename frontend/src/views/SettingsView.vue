@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { NCard, NSpace, NButton, NModal, NAlert, NSpin, NProgress, NUpload, NUploadFileInfo, NInput } from 'naive-ui'
+import { ref } from 'vue'
+import { NCard, NSpace, NButton, NModal, NAlert, NSpin, NProgress, NUpload, type UploadFileInfo } from 'naive-ui'
 import { useAssetStore } from '@/stores/assets'
 import { useTransactionStore } from '@/stores/transactions'
 import { useMemberStore } from '@/stores/members'
@@ -24,7 +24,7 @@ const importMessage = ref('')
 const importProgress = ref(0)
 
 // 备份文件上传
-const fileList = ref<NUploadFileInfo[]>([])
+const fileList = ref<UploadFileInfo[]>([])
 const backupStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const backupMessage = ref('')
 
@@ -69,8 +69,8 @@ function handleExportBackup() {
 }
 
 // 处理备份文件选择
-function handleBackupSelect(options: { fileList: NUploadFileInfo[] }) {
-  fileList.value = options.fileList
+function handleBackupSelect(fileListParam: UploadFileInfo[]) {
+  fileList.value = fileListParam
 }
 
 // 处理备份恢复
@@ -81,8 +81,13 @@ async function handleRestoreBackup() {
     return
   }
 
-  const file = fileList.value[0].file
-  if (!file) return
+  const fileOrUndefined = fileList.value[0]?.file
+  const file = fileOrUndefined!
+  if (!file) {
+    backupMessage.value = '文件读取失败'
+    backupStatus.value = 'error'
+    return
+  }
 
   backupStatus.value = 'loading'
   backupMessage.value = '正在恢复数据...'
@@ -190,8 +195,8 @@ async function handleResetCategories() {
   if (confirm('确定要重置分类吗？这将清除所有自定义分类')) {
     await db.db.assetCategories.clear()
     await db.db.transactionCategories.clear()
-    await db.initDefaultAssetCategories()
-    await db.initDefaultTransactionCategories()
+    await db.db.initDefaultAssetCategories()
+    await db.db.initDefaultTransactionCategories()
     location.reload()
   }
 }

@@ -2,7 +2,7 @@
 import { h } from 'vue'
 import { onMounted } from 'vue'
 import { NConfigProvider, NGlobalStyle, NLayout, NLayoutSider, NLayoutContent, NMenu } from 'naive-ui'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { initDB } from '@/db'
 import { useAssetStore } from '@/stores/assets'
 import { useTransactionStore } from '@/stores/transactions'
