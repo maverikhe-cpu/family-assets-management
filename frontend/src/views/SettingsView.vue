@@ -204,9 +204,15 @@ async function handleResetCategories() {
 
 <template>
   <div class="settings-view">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h2 class="page-title">设置</h2>
+      <p class="page-subtitle">数据管理与导出</p>
+    </div>
+
     <NSpace vertical :size="24">
       <!-- Excel 导出 -->
-      <NCard title="导出到 Excel">
+      <NCard title="导出到 Excel" class="setting-card">
         <NSpace vertical :size="12">
           <p class="section-desc">将数据导出为 Excel 文件，方便查看和分享</p>
           <NSpace :size="12">
@@ -224,7 +230,7 @@ async function handleResetCategories() {
       </NCard>
 
       <!-- 数据备份与恢复 -->
-      <NCard title="数据备份与恢复">
+      <NCard title="数据备份与恢复" class="setting-card">
         <NSpace vertical :size="12">
           <p class="section-desc">创建完整数据备份或在需要时恢复数据</p>
           <NSpace :size="12">
@@ -239,16 +245,16 @@ async function handleResetCategories() {
       </NCard>
 
       <!-- 初始数据导入 -->
-      <NCard title="导入初始数据">
+      <NCard title="导入初始数据" class="setting-card">
         <NSpace vertical :size="12">
           <p>从预置数据文件导入初始资产数据（{{ assetStore.assets.length > 0 ? '已有数据，导入将追加' : '包含33条资产记录' }}）</p>
-          <p style="color: #666; font-size: 12px;">包含资产：房产、股票基金、银行存款、保险等，支持多币种（CNY/USD/HKD/GBP）</p>
+          <p class="section-desc">包含资产：房产、股票基金、银行存款、保险等，支持多币种（CNY/USD/HKD/GBP）</p>
           <NButton type="primary" @click="showImportModal = true">导入初始数据</NButton>
         </NSpace>
       </NCard>
 
       <!-- 数据管理 -->
-      <NCard title="数据管理">
+      <NCard title="数据管理" class="setting-card">
         <NSpace vertical :size="12">
           <p>重置分类为默认模板</p>
           <NButton @click="handleResetCategories">重置分类</NButton>
@@ -256,7 +262,7 @@ async function handleResetCategories() {
       </NCard>
 
       <!-- 危险区域 -->
-      <NCard title="危险区域">
+      <NCard title="危险区域" class="setting-card setting-card--danger">
         <NAlert type="error" title="警告" style="margin-bottom: 12px">
           以下操作不可逆，请谨慎操作
         </NAlert>
@@ -267,12 +273,12 @@ async function handleResetCategories() {
       </NCard>
 
       <!-- 关于 -->
-      <NCard title="关于">
+      <NCard title="关于" class="setting-card">
         <NSpace vertical>
           <p><strong>家庭资产管家</strong></p>
           <p>版本：1.0.0 (MVP)</p>
           <p>数据存储：本地 IndexedDB</p>
-          <p>您的数据完全存储在本地浏览器中，不会上传到任何服务器</p>
+          <p class="section-desc">您的数据完全存储在本地浏览器中，不会上传到任何服务器</p>
         </NSpace>
       </NCard>
     </NSpace>
@@ -286,7 +292,7 @@ async function handleResetCategories() {
     >
       <NSpace vertical :size="16">
         <p>此操作将从预置文件导入资产数据，包含：</p>
-        <ul>
+        <ul class="import-list">
           <li>固定资产（房产）：8处房产</li>
           <li>投资资产：股票基金、保险等</li>
           <li>流动资产：银行存款</li>
@@ -330,7 +336,7 @@ async function handleResetCategories() {
     >
       <NSpace vertical :size="16">
         <p>选择之前创建的备份文件（.json）来恢复数据</p>
-        <p style="color: #f56c6c; font-size: 12px;">⚠️ 恢复将覆盖现有所有数据，请谨慎操作</p>
+        <p class="warning-text">⚠️ 恢复将覆盖现有所有数据，请谨慎操作</p>
 
         <NUpload
           :file-list="fileList"
@@ -377,18 +383,50 @@ async function handleResetCategories() {
   margin: 0 auto;
 }
 
+/* 页面标题 */
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--n-text-color-1);
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--n-text-color-3);
+  font-size: 14px;
+}
+
+/* 设置卡片 */
+.setting-card {
+  margin-bottom: 24px;
+}
+
+.setting-card--danger {
+  border-color: var(--color-error);
+}
+
 .section-desc {
   margin: 0;
-  color: #666;
+  color: var(--n-text-color-3);
   font-size: 13px;
 }
 
-ul {
+.warning-text {
+  color: var(--color-error);
+  font-size: 12px;
+}
+
+.import-list {
   margin: 0;
   padding-left: 20px;
 }
 
-li {
+.import-list li {
   margin: 4px 0;
 }
 </style>

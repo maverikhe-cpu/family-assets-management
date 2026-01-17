@@ -38,7 +38,6 @@ const monthOptions = Array.from({ length: 12 }, (_, i) => ({
 const monthlyStats = computed(() => {
   const stats: Record<string, { income: number; expense: number; net: number }> = {}
 
-  // 初始化所有月份
   for (let m = 1; m <= 12; m++) {
     const key = `${selectedYear.value}-${m.toString().padStart(2, '0')}`
     stats[key] = { income: 0, expense: 0, net: 0 }
@@ -67,7 +66,7 @@ const monthlyStats = computed(() => {
 
 // 收支趋势图数据
 const trendChartData = computed(() => ({
-  labels: monthlyStats.value.map(m => m.month.slice(5)), // MM format
+  labels: monthlyStats.value.map(m => m.month.slice(5)),
   datasets: [
     {
       label: '收入',
@@ -182,8 +181,7 @@ const memberAssetComparison = computed(() => {
           count: 0
         }
       }
-      // 转换为基准货币
-      const amountInBase = asset.currentValue * (asset.currency === 'CNY' ? 1 : 1) // 简化处理
+      const amountInBase = asset.currentValue * (asset.currency === 'CNY' ? 1 : 1)
       comparison[memberId].totalAssets += amountInBase
       comparison[memberId].count++
     }
@@ -251,18 +249,18 @@ const memberTransactionColumns: DataTableColumns<{
   {
     title: '收入',
     key: 'income',
-    render: (row) => h('span', { style: { color: '#10B981' } }, `¥${row.income.toLocaleString()}`)
+    render: (row) => h('span', { class: 'amount amount--income' }, `¥${row.income.toLocaleString()}`)
   },
   {
     title: '支出',
     key: 'expense',
-    render: (row) => h('span', { style: { color: '#EF4444' } }, `¥${row.expense.toLocaleString()}`)
+    render: (row) => h('span', { class: 'amount amount--expense' }, `¥${row.expense.toLocaleString()}`)
   },
   {
     title: '净收入',
     key: 'net',
     render: (row) => h('span', {
-      style: { color: row.net >= 0 ? '#10B981' : '#EF4444' }
+      class: row.net >= 0 ? 'amount amount--income' : 'amount amount--expense'
     }, `${row.net >= 0 ? '+' : ''}¥${row.net.toLocaleString()}`)
   },
   {
@@ -274,7 +272,6 @@ const memberTransactionColumns: DataTableColumns<{
 const memberTransactionData = computed(() => {
   const stats: Record<string, { name: string; income: number; expense: number; net: number; transactionCount: number; color: string }> = {}
 
-  // 初始化所有成员
   for (const member of memberStore.members) {
     stats[member.id] = {
       name: member.name,
@@ -331,20 +328,26 @@ onMounted(async () => {
 
 <template>
   <div class="reports-view">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h2 class="page-title">报表分析</h2>
+      <p class="page-subtitle">收支趋势与资产分析</p>
+    </div>
+
     <!-- 空状态 -->
-    <NEmpty v-if="!hasData" description="暂无数据，请先添加资产或记录收支" />
+    <NEmpty v-if="!hasData" description="暂无数据，请先添加资产或记录收支" class="empty-state" />
 
     <NSpace v-else vertical :size="24">
       <!-- 筛选控制栏 -->
-      <NCard>
+      <NCard class="filter-card">
         <NSpace :size="16" align="center">
-          <span>统计年份：</span>
+          <span class="filter-label">统计年份：</span>
           <NSelect
             v-model:value="selectedYear"
             :options="yearOptions"
             style="width: 120px"
           />
-          <span style="margin-left: 16px;">统计月份：</span>
+          <span class="filter-label">统计月份：</span>
           <NSelect
             v-model:value="selectedMonth"
             :options="monthOptions"
@@ -354,40 +357,40 @@ onMounted(async () => {
       </NCard>
 
       <!-- 收支趋势图 -->
-      <NCard title="收支趋势分析">
+      <NCard title="收支趋势分析" class="chart-card">
         <template #header-extra>
-          <span class="chart-subtitle">单位: 元</span>
+          <span class="chart-unit">单位: 元</span>
         </template>
-        <div style="height: 320px;">
+        <div class="chart-container chart-container--line">
           <Line :data="trendChartData" :options="trendChartOptions" />
         </div>
       </NCard>
 
       <!-- 核心指标 -->
-      <NGrid :x-gap="16" :y-gap="16" :cols="4">
+      <NGrid :x-gap="16" :y-gap="16" :cols="4" class="stats-grid">
         <NGridItem>
-          <NCard>
+          <NCard class="stat-card">
             <NStatistic label="年度总收入" :value="totalStats.totalIncome">
               <template #prefix>¥</template>
             </NStatistic>
           </NCard>
         </NGridItem>
         <NGridItem>
-          <NCard>
+          <NCard class="stat-card">
             <NStatistic label="年度总支出" :value="totalStats.totalExpense">
               <template #prefix>¥</template>
             </NStatistic>
           </NCard>
         </NGridItem>
         <NGridItem>
-          <NCard>
+          <NCard class="stat-card stat-card--primary">
             <NStatistic label="年度净收入" :value="totalStats.netIncome">
               <template #prefix>¥</template>
             </NStatistic>
           </NCard>
         </NGridItem>
         <NGridItem>
-          <NCard>
+          <NCard class="stat-card">
             <NStatistic label="储蓄率" :value="savingsRate" :precision="1">
               <template #suffix>%</template>
             </NStatistic>
@@ -398,8 +401,8 @@ onMounted(async () => {
       <!-- 收支分类占比 -->
       <NGrid :x-gap="16" :y-gap="16" :cols="2">
         <NGridItem>
-          <NCard title="支出分类占比">
-            <div style="height: 280px;">
+          <NCard title="支出分类占比" class="chart-card">
+            <div class="chart-container chart-container--pie">
               <Pie v-if="Object.keys(transactionStore.expenseByCategory).length > 0"
                 :data="expensePieData"
                 :options="pieChartOptions"
@@ -409,8 +412,8 @@ onMounted(async () => {
           </NCard>
         </NGridItem>
         <NGridItem>
-          <NCard title="收入分类占比">
-            <div style="height: 280px;">
+          <NCard title="收入分类占比" class="chart-card">
+            <div class="chart-container chart-container--pie">
               <Pie v-if="Object.keys(transactionStore.incomeByCategory).length > 0"
                 :data="incomePieData"
                 :options="pieChartOptions"
@@ -422,8 +425,8 @@ onMounted(async () => {
       </NGrid>
 
       <!-- 成员资产对比 -->
-      <NCard title="成员资产对比">
-        <div style="height: 280px;">
+      <NCard title="成员资产对比" class="chart-card">
+        <div class="chart-container chart-container--bar">
           <Bar v-if="memberAssetComparison.length > 0"
             :data="memberComparisonData"
             :options="barChartOptions"
@@ -433,7 +436,7 @@ onMounted(async () => {
       </NCard>
 
       <!-- 成员交易统计表 -->
-      <NCard title="成员收支统计">
+      <NCard title="成员收支统计" class="table-card">
         <NDataTable
           :columns="memberTransactionColumns"
           :data="memberTransactionData"
@@ -443,25 +446,25 @@ onMounted(async () => {
       </NCard>
 
       <!-- 月度数据详情 -->
-      <NCard title="月度收支明细">
+      <NCard title="月度收支明细" class="table-card">
         <NDataTable
           :columns="[
             { title: '月份', key: 'month', render: (row) => row.month.slice(5) + '月' },
             {
               title: '收入',
               key: 'income',
-              render: (row) => h('span', { style: { color: '#10B981' } }, `¥${row.income.toLocaleString()}`)
+              render: (row) => h('span', { class: 'amount amount--income' }, `¥${row.income.toLocaleString()}`)
             },
             {
               title: '支出',
               key: 'expense',
-              render: (row) => h('span', { style: { color: '#EF4444' } }, `¥${row.expense.toLocaleString()}`)
+              render: (row) => h('span', { class: 'amount amount--expense' }, `¥${row.expense.toLocaleString()}`)
             },
             {
               title: '净收入',
               key: 'net',
               render: (row) => h('span', {
-                style: { color: row.net >= 0 ? '#10B981' : '#EF4444', fontWeight: 'bold' }
+                class: row.net >= 0 ? 'amount amount--income' : 'amount amount--expense'
               }, `${row.net >= 0 ? '+' : ''}¥${row.net.toLocaleString()}`)
             }
           ]"
@@ -478,11 +481,98 @@ onMounted(async () => {
 .reports-view {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 16px;
 }
 
-.chart-subtitle {
+/* 页面标题 */
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--n-text-color-1);
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--n-text-color-3);
+  font-size: 14px;
+}
+
+/* 空状态 */
+.empty-state {
+  margin-top: 60px;
+}
+
+/* 筛选卡片 */
+.filter-card {
+  margin-bottom: 24px;
+}
+
+.filter-label {
+  font-size: 14px;
+  color: var(--n-text-color-2);
+}
+
+/* 图表卡片 */
+.chart-card {
+  margin-bottom: 24px;
+}
+
+.chart-unit {
   font-size: 12px;
-  color: #999;
+  color: var(--n-text-color-3);
+}
+
+.chart-container {
+  position: relative;
+}
+
+.chart-container--line {
+  height: 320px;
+}
+
+.chart-container--pie {
+  height: 280px;
+}
+
+.chart-container--bar {
+  height: 280px;
+}
+
+/* 统计网格 */
+.stats-grid {
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  height: 100%;
+}
+
+.stat-card--primary {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.1) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+/* 表格卡片 */
+.table-card {
+  margin-bottom: 24px;
+}
+
+/* 金额样式 */
+.amount {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+}
+
+.amount--income {
+  color: var(--color-success);
+}
+
+.amount--expense {
+  color: var(--color-error);
 }
 </style>

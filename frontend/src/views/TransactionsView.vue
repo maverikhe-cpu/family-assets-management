@@ -16,7 +16,6 @@ import {
   NRadioGroup,
   NRadio,
   NPopconfirm,
-  NDivider,
   type DataTableColumns,
   type FormInst
 } from 'naive-ui'
@@ -91,9 +90,10 @@ const columns: DataTableColumns<Transaction> = [
     title: '金额',
     key: 'amount',
     render: (row) => {
-      const color = row.type === 'income' ? '#10b981' : '#ef4444'
+      const color = row.type === 'income' ? 'var(--color-success)' : 'var(--color-error)'
       return h('span', {
-        style: { color, fontWeight: 'bold' }
+        class: 'amount',
+        style: { color, fontWeight: '600' }
       }, `${row.type === 'income' ? '+' : '-'}¥${row.amount.toLocaleString()}`)
     }
   },
@@ -209,33 +209,40 @@ async function handleDelete(id: string) {
 
 <template>
   <div class="transactions-view">
-    <NCard title="收支记录">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h2 class="page-title">收支记录</h2>
+      <p class="page-subtitle">记录和管理家庭收支</p>
+    </div>
+
+    <!-- 统计摘要卡片 -->
+    <NCard class="summary-card">
+      <NSpace :size="32" class="summary">
+        <div class="summary-item">
+          <span class="summary-label">总收入</span>
+          <span class="summary-value summary-value--income">+¥{{ transactionStore.totalIncome.toLocaleString() }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">总支出</span>
+          <span class="summary-value summary-value--expense">-¥{{ transactionStore.totalExpense.toLocaleString() }}</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">净收入</span>
+          <span class="summary-value" :class="transactionStore.netIncome >= 0 ? 'summary-value--income' : 'summary-value--expense'">
+            ¥{{ transactionStore.netIncome.toLocaleString() }}
+          </span>
+        </div>
+      </NSpace>
+    </NCard>
+
+    <!-- 交易列表 -->
+    <NCard class="table-card">
       <template #header-extra>
         <NSpace>
           <NButton type="success" @click="handleAdd('income')">记收入</NButton>
           <NButton type="error" @click="handleAdd('expense')">记支出</NButton>
         </NSpace>
       </template>
-
-      <!-- 统计摘要 -->
-      <NSpace class="summary" :size="32">
-        <div class="summary-item">
-          <span class="label">总收入</span>
-          <span class="value income">+¥{{ transactionStore.totalIncome.toLocaleString() }}</span>
-        </div>
-        <div class="summary-item">
-          <span class="label">总支出</span>
-          <span class="value expense">-¥{{ transactionStore.totalExpense.toLocaleString() }}</span>
-        </div>
-        <div class="summary-item">
-          <span class="label">净收入</span>
-          <span class="value" :class="transactionStore.netIncome >= 0 ? 'income' : 'expense'">
-            ¥{{ transactionStore.netIncome.toLocaleString() }}
-          </span>
-        </div>
-      </NSpace>
-
-      <NDivider />
 
       <NDataTable
         :columns="columns"
@@ -350,9 +357,32 @@ async function handleDelete(id: string) {
   margin: 0 auto;
 }
 
+/* 页面标题 */
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--n-text-color-1);
+}
+
+.page-subtitle {
+  margin: 0;
+  color: var(--n-text-color-3);
+  font-size: 14px;
+}
+
+/* 统计摘要卡片 */
+.summary-card {
+  margin-bottom: 24px;
+}
+
 .summary {
   display: flex;
-  padding: 16px 0;
+  padding: 8px 0;
 }
 
 .summary-item {
@@ -361,21 +391,36 @@ async function handleDelete(id: string) {
   gap: 4px;
 }
 
-.summary-item .label {
+.summary-label {
   font-size: 12px;
-  color: #999;
+  color: var(--n-text-color-3);
 }
 
-.summary-item .value {
+.summary-value {
   font-size: 20px;
-  font-weight: bold;
+  font-weight: 600;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
 }
 
-.summary-item .value.income {
-  color: #10b981;
+.summary-value--income {
+  color: var(--color-success);
 }
 
-.summary-item .value.expense {
-  color: #ef4444;
+.summary-value--expense {
+  color: var(--color-error);
+}
+
+/* 表格卡片 */
+.table-card {
+  margin-bottom: 24px;
+}
+
+/* 金额样式 */
+.amount {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
 }
 </style>

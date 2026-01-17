@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import { h } from 'vue'
+import { h, computed } from 'vue'
 import { onMounted } from 'vue'
-import { NConfigProvider, NGlobalStyle, NLayout, NLayoutSider, NLayoutContent, NMenu } from 'naive-ui'
+import {
+  NConfigProvider, NGlobalStyle, NLayout, NLayoutSider,
+  NLayoutContent, NMenu
+} from 'naive-ui'
 import { useRoute, useRouter } from 'vue-router'
 import { initDB } from '@/db'
 import { useAssetStore } from '@/stores/assets'
 import { useTransactionStore } from '@/stores/transactions'
 import { useMemberStore } from '@/stores/members'
+import { themeOverrides } from '@/theme'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,6 +18,11 @@ const assetStore = useAssetStore()
 const transactionStore = useTransactionStore()
 const memberStore = useMemberStore()
 
+// 主题配置
+const theme = null // 使用亮色主题
+const inlineThemeOverrides = themeOverrides
+
+// 菜单选项
 const menuOptions = [
   {
     label: '仪表盘',
@@ -42,11 +51,12 @@ const menuOptions = [
   }
 ]
 
+// 当前选中的菜单
+const activeKey = computed(() => route.name as string)
+
 onMounted(async () => {
   try {
-    // 初始化数据库
     await initDB()
-    // 加载数据
     await assetStore.loadCategories()
     await assetStore.loadAssets()
     await transactionStore.loadCategories()
@@ -63,59 +73,103 @@ function handleMenuKey(key: string) {
 </script>
 
 <template>
-  <n-config-provider>
+  <n-config-provider :theme="theme" :theme-overrides="inlineThemeOverrides">
     <n-global-style />
-    <n-layout has-sider style="height: 100vh">
+    <n-layout has-sider class="app-layout">
+      <!-- 侧边栏 -->
       <n-layout-sider
         bordered
         show-trigger
         collapse-mode="width"
         :collapsed-width="64"
-        :width="200"
+        :width="220"
         :native-scrollbar="false"
+        class="app-sider"
       >
         <div class="logo">
-          <h1>家庭资产管家</h1>
+          <span class="logo-icon">💎</span>
+          <h1 class="logo-title">家庭资产管家</h1>
         </div>
         <n-menu
-          :value="route.name as string"
+          :value="activeKey"
           :collapsed-width="64"
           :collapsed-icon-size="22"
           :options="menuOptions"
           @update:value="handleMenuKey"
+          class="app-menu"
         />
       </n-layout-sider>
-      <n-layout content-style="padding: 24px; display: flex; flex-direction: column;">
-        <n-layout-content style="flex: 1;">
+
+      <!-- 主内容区 -->
+      <n-layout-content class="app-content">
+        <div class="content-wrapper">
           <router-view />
-        </n-layout-content>
-        <div class="footer">
-          By CC
         </div>
-      </n-layout>
+        <div class="footer">
+          家庭资产管家 v1.0 · By CC
+        </div>
+      </n-layout-content>
     </n-layout>
   </n-config-provider>
 </template>
 
 <style scoped>
-.logo {
-  padding: 20px;
-  text-align: center;
-  border-bottom: 1px solid #f0f0f0;
+.app-layout {
+  height: 100vh;
 }
 
-.logo h1 {
-  font-size: 18px;
-  margin: 0;
+/* 侧边栏样式 */
+.app-sider {
+  background: var(--n-color);
+  position: relative;
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: var(--n-gap);
+  padding: var(--spacing-xl) var(--spacing-lg);
+  border-bottom: 1px solid var(--n-border-color);
+}
+
+.logo-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.logo-title {
+  font-size: 16px;
   font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  color: var(--n-text-color);
+}
+
+.app-menu {
+  padding: var(--spacing-md) 0;
+}
+
+/* 主内容区样式 */
+.app-content {
+  background: var(--n-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-xxl);
 }
 
 .footer {
   text-align: center;
-  padding: 16px 0;
-  color: #999;
-  font-size: 12px;
-  border-top: 1px solid #f0f0f0;
-  margin-top: 24px;
+  padding: var(--spacing-lg) 0;
+  color: var(--n-text-color-3);
+  font-size: var(--font-xs);
+  border-top: 1px solid var(--n-border-color);
+  flex-shrink: 0;
 }
 </style>
