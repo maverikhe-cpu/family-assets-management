@@ -521,7 +521,7 @@ function getCurrencySymbol(currency: string) {
 
     <NCard title="资产管理">
       <template #header-extra>
-        <NSpace :size="8">
+        <NSpace :size="8" inline>
           <NButton type="primary" size="small" @click="handleAdd">添加资产</NButton>
           <NPopconfirm
             v-if="showBatchActions"
@@ -763,11 +763,16 @@ function getCurrencySymbol(currency: string) {
 
 :deep(.n-card-header__extra) {
   flex-shrink: 0;
+  margin-left: 12px;
 }
 
 :deep(.n-card-header__extra .n-space) {
-  display: flex;
-  flex-wrap: nowrap;
+  display: inline-flex !important;
+  flex-wrap: nowrap !important;
+}
+
+:deep(.n-card-header__extra .n-space-item) {
+  display: inline-flex !important;
 }
 
 .member-stats-card {
