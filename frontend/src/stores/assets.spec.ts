@@ -161,6 +161,6 @@ describe('Assets Store', () => {
 
     store.assets = mockAssets
     expect(store.activeAssets.length).toBe(1)
-    expect(store.activeAssets[0].status).toBe('active')
+    expect(store.activeAssets[0]!.status).toBe('active')
   })
 })

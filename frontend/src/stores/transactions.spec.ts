@@ -139,7 +139,7 @@ describe('Transactions Store', () => {
 
     expect(store.incomeTransactions.length).toBe(1)
     expect(store.expenseTransactions.length).toBe(1)
-    expect(store.incomeTransactions[0].type).toBe('income')
-    expect(store.expenseTransactions[0].type).toBe('expense')
+    expect(store.incomeTransactions[0]!.type).toBe('income')
+    expect(store.expenseTransactions[0]!.type).toBe('expense')
   })
 })
