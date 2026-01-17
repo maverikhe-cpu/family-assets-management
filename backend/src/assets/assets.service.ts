@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Asset } from './entities/asset.entity';
 import { AssetCategory } from './entities/asset-category.entity';
-import { AssetChange } from './entities/asset-change.entity';
+import { AssetChange, AssetChangeType } from './entities/asset-change.entity';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 
@@ -52,13 +52,17 @@ export class AssetsService {
     const updated = await this.assetsRepository.save(asset);
 
     // 记录估值变动
-    if (updateAssetDto.currentValue !== undefined && updateAssetDto.currentValue !== beforeValue) {
+    if ('currentValue' in updateAssetDto && updateAssetDto.currentValue !== undefined && updateAssetDto.currentValue !== beforeValue) {
+      const profitLoss = updateAssetDto.currentValue - beforeValue;
+      const profitLossRate = beforeValue > 0 ? (profitLoss / beforeValue) * 100 : 0;
       await this.changesRepository.save({
         assetId: id,
-        type: 'valuation_adjust',
+        type: AssetChangeType.VALUATION_ADJUST,
         amount: updateAssetDto.currentValue - beforeValue,
         beforeValue,
         afterValue: updateAssetDto.currentValue,
+        profitLoss,
+        profitLossRate,
         date: new Date(),
       });
     }

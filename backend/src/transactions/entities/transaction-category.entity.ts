@@ -12,13 +12,13 @@ export class TransactionCategory extends BaseEntity {
   name: string;
 
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: CategoryType,
   })
   type: CategoryType;
 
   @Column({ nullable: true })
-  parentId: string | null;
+  parentId: string;
 
   @Column()
   icon: string;

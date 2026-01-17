@@ -9,6 +9,7 @@ export enum AssetChangeType {
   TRANSFER_OUT = 'transfer_out',
   VALUATION_ADJUST = 'valuation_adjust',
   DEPRECIATION = 'depreciation',
+  DISPOSE = 'dispose',
 }
 
 @Entity('asset_changes')
@@ -17,7 +18,7 @@ export class AssetChange extends BaseEntity {
   assetId: string;
 
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: AssetChangeType,
   })
   type: AssetChangeType;
@@ -30,6 +31,12 @@ export class AssetChange extends BaseEntity {
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
   afterValue: number;
+
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true })
+  profitLoss: number;
+
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
+  profitLossRate: number;
 
   @Column({ nullable: true })
   relatedTransactionId: string;

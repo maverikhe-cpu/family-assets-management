@@ -2,6 +2,10 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Transaction, TransactionCategory } from '@/types'
 import * as db from '@/db'
+import { api } from '@/api/client'
+
+// 是否使用后端 API
+const USE_API = true
 
 export const useTransactionStore = defineStore('transactions', () => {
   // 状态
@@ -106,7 +110,31 @@ export const useTransactionStore = defineStore('transactions', () => {
   }
 
   async function loadCategories() {
-    categories.value = await db.db.transactionCategories.toArray()
+    if (USE_API) {
+      try {
+        const incomeData = await api.transactions.getCategories('income')
+        const expenseData = await api.transactions.getCategories('expense')
+        // Transform backend data to frontend format
+        const transform = (cat: any) => ({
+          id: cat.id,
+          name: cat.name,
+          type: cat.type,
+          parentId: cat.parentId,
+          icon: cat.icon,
+          color: cat.color,
+          isBuiltin: cat.isBuiltin,
+          order: cat.order,
+          createdAt: cat.createdAt,
+          updatedAt: cat.updatedAt
+        })
+        categories.value = [...incomeData.map(transform), ...expenseData.map(transform)]
+      } catch (error) {
+        console.error('Failed to load categories from API, falling back to local DB:', error)
+        categories.value = await db.db.transactionCategories.toArray()
+      }
+    } else {
+      categories.value = await db.db.transactionCategories.toArray()
+    }
   }
 
   async function addTransaction(transaction: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) {

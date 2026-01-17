@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transaction } from './entities/transaction.entity';
-import { TransactionCategory } from './entities/transaction-category.entity';
+import { TransactionCategory, CategoryType } from './entities/transaction-category.entity';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 
@@ -58,7 +58,7 @@ export class TransactionsService {
 
   // 交易分类
   async findCategories(type?: 'income' | 'expense'): Promise<TransactionCategory[]> {
-    const where = type ? { type } : {};
+    const where = type ? { type: type as CategoryType } : {};
     return this.categoriesRepository.find({
       where,
       order: { order: 'ASC' },

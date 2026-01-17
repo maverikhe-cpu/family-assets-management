@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConsoleModule } from 'nestjs-console';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AssetsModule } from './assets/assets.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { CommonModule } from './common/common.module';
 import { User } from './users/entities/user.entity';
 import { Asset } from './assets/entities/asset.entity';
 import { AssetCategory } from './assets/entities/asset-category.entity';
@@ -19,13 +21,10 @@ import { TransactionCategory } from './transactions/entities/transaction-categor
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    ConsoleModule,
     TypeOrmModule.forRoot({
-      type: 'postgres',
-      host: process.env.DB_HOST || 'localhost',
-      port: parseInt(process.env.DB_PORT || '5432'),
-      username: process.env.DB_USERNAME || 'postgres',
-      password: process.env.DB_PASSWORD || 'postgres',
-      database: process.env.DB_DATABASE || 'family_assets',
+      type: 'sqlite',
+      database: process.env.DB_DATABASE || 'data/family_assets.db',
       entities: [
         User,
         Asset,
@@ -35,7 +34,10 @@ import { TransactionCategory } from './transactions/entities/transaction-categor
         TransactionCategory,
       ],
       synchronize: process.env.NODE_ENV !== 'production',
+      // SQLite specific settings
+      logging: false,
     }),
+    CommonModule,
     AuthModule,
     UsersModule,
     AssetsModule,

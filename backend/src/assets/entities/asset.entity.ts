@@ -33,7 +33,7 @@ export class Asset extends BaseEntity {
   purchaseDate: Date;
 
   @Column({
-    type: 'enum',
+    type: 'simple-enum',
     enum: AssetStatus,
     default: AssetStatus.ACTIVE,
   })

@@ -13,6 +13,14 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
+interface RequestWithUser extends Request {
+  user: {
+    userId: string;
+    username: string;
+    role: string;
+  };
+}
+
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
@@ -29,7 +37,7 @@ export class UsersController {
   }
 
   @Get('me')
-  getProfile(@Request() req) {
+  getProfile(@Request() req: RequestWithUser) {
     return this.usersService.findOne(req.user.userId);
   }
 

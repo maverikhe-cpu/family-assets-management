@@ -7,7 +7,7 @@ export class AssetCategory extends BaseEntity {
   name: string;
 
   @Column({ nullable: true })
-  parentId: string | null;
+  parentId: string;
 
   @Column()
   icon: string;
