@@ -521,18 +521,18 @@ function getCurrencySymbol(currency: string) {
 
     <NCard title="资产管理">
       <template #header-extra>
-        <NSpace>
-          <NButton type="primary" @click="handleAdd">添加资产</NButton>
+        <NSpace :size="8">
+          <NButton type="primary" size="small" @click="handleAdd">添加资产</NButton>
           <NPopconfirm
             v-if="showBatchActions"
             @positive-click="handleBatchDelete"
           >
             <template #trigger>
-              <NButton type="error">批量删除 ({{ checkedRowKeys.length }})</NButton>
+              <NButton type="error" size="small">批量删除 ({{ checkedRowKeys.length }})</NButton>
             </template>
             确定删除选中的 {{ checkedRowKeys.length }} 个资产？
           </NPopconfirm>
-          <NButton v-if="showBatchActions" @click="handleClearSelection">取消选择</NButton>
+          <NButton v-if="showBatchActions" size="small" @click="handleClearSelection">取消选择</NButton>
         </NSpace>
       </template>
 
@@ -753,6 +753,21 @@ function getCurrencySymbol(currency: string) {
   font-family: 'SF Mono', Monaco, Consolas, monospace;
   font-feature-settings: 'tnum';
   font-variant-numeric: tabular-nums;
+}
+
+/* 操作按钮不换行 */
+:deep(.n-card-header__main) {
+  flex: 1;
+  min-width: 0;
+}
+
+:deep(.n-card-header__extra) {
+  flex-shrink: 0;
+}
+
+:deep(.n-card-header__extra .n-space) {
+  display: flex;
+  flex-wrap: nowrap;
 }
 
 .member-stats-card {
