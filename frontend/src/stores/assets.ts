@@ -1,0 +1,207 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import type { Asset, AssetCategory, AssetChange, AssetStatistics, AssetDistribution } from '@/types'
+import * as db from '@/db'
+import { convertCurrency, formatCurrency } from '@/utils/currency'
+
+// 基准货币
+const BASE_CURRENCY = 'CNY'
+
+export const useAssetStore = defineStore('assets', () => {
+  // 状态
+  const assets = ref<Asset[]>([])
+  const categories = ref<AssetCategory[]>([])
+  const changes = ref<AssetChange[]>([])
+  const loading = ref(false)
+
+  // 计算属性
+  const activeAssets = computed(() => assets.value.filter(a => a.status === 'active'))
+
+  // 根据一级分类名称获取其所有二级分类的ID
+  function getChildCategoryIds(parentName: string): string[] {
+    const parent = categories.value.find(c => c.name === parentName && !c.parentId)
+    if (!parent) return []
+    return categories.value
+      .filter(c => c.parentId === parent.id)
+      .map(c => c.id)
+  }
+
+  // 固定资产
+  const fixedAssets = computed(() => {
+    const fixedCategoryIds = getChildCategoryIds('固定资产')
+    return activeAssets.value.filter(a => fixedCategoryIds.includes(a.categoryId))
+  })
+
+  // 流动资产
+  const liquidAssets = computed(() => {
+    const liquidCategoryIds = getChildCategoryIds('流动资产')
+    return activeAssets.value.filter(a => liquidCategoryIds.includes(a.categoryId))
+  })
+
+  // 投资资产
+  const investmentAssets = computed(() => {
+    const investmentCategoryIds = getChildCategoryIds('投资资产')
+    return activeAssets.value.filter(a => investmentCategoryIds.includes(a.categoryId))
+  })
+
+  // 负债
+  const liabilities = computed(() => {
+    const liabilityCategoryIds = getChildCategoryIds('负债')
+    return activeAssets.value.filter(a => liabilityCategoryIds.includes(a.categoryId))
+  })
+
+  // 统计数据（所有金额转换为基准货币）
+  const statistics = computed((): AssetStatistics => {
+    // 将资产金额转换为基准货币
+    const toBaseCurrency = (amount: number, currency: string) =>
+      convertCurrency(amount, currency, BASE_CURRENCY)
+
+    // 计算总资产（排除负债）
+    const totalAssets = activeAssets.value
+      .filter(a => !liabilities.value.some(l => l.id === a.id))
+      .reduce((sum, a) => sum + toBaseCurrency(a.currentValue, a.currency), 0)
+
+    // 计算总负债
+    const totalLiabilities = liabilities.value
+      .reduce((sum, a) => sum + toBaseCurrency(a.currentValue, a.currency), 0)
+
+    // 计算各类资产金额
+    const liquidAmount = liquidAssets.value
+      .reduce((sum, a) => sum + toBaseCurrency(a.currentValue, a.currency), 0)
+    const fixedAmount = fixedAssets.value
+      .reduce((sum, a) => sum + toBaseCurrency(a.currentValue, a.currency), 0)
+    const investmentAmount = investmentAssets.value
+      .reduce((sum, a) => sum + toBaseCurrency(a.currentValue, a.currency), 0)
+
+    return {
+      totalAssets,
+      totalLiabilities,
+      netWorth: totalAssets - totalLiabilities,
+      liquidAssets: liquidAmount,
+      fixedAssets: fixedAmount,
+      investmentAssets: investmentAmount,
+      liabilityRatio: totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0
+    }
+  })
+
+  // 资产分布（所有金额转换为基准货币）
+  const distribution = computed((): AssetDistribution[] => {
+    const topCategories = categories.value.filter(c => !c.parentId)
+    return topCategories.map(cat => {
+      const categoryAssets = assets.value.filter(a => {
+        // 检查资产是否属于该一级分类（通过二级分类）
+        const subCategories = categories.value.filter(sc => sc.parentId === cat.id)
+        return subCategories.some(sc => sc.id === a.categoryId)
+      })
+
+      // 将金额转换为基准货币
+      const amount = categoryAssets.reduce((sum, a) =>
+        sum + convertCurrency(a.currentValue, a.currency, BASE_CURRENCY), 0)
+      const total = statistics.value.totalAssets + statistics.value.totalLiabilities
+
+      return {
+        categoryId: cat.id,
+        categoryName: cat.name,
+        amount,
+        percentage: total > 0 ? (amount / total) * 100 : 0,
+        color: cat.color
+      }
+    }).filter(d => d.amount > 0)
+  })
+
+  // Actions
+  async function loadAssets() {
+    loading.value = true
+    try {
+      assets.value = await db.db.assets.toArray()
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loadCategories() {
+    categories.value = await db.db.assetCategories.toArray()
+  }
+
+  async function loadChanges(assetId?: string) {
+    if (assetId) {
+      changes.value = await db.db.assetChanges.where('assetId').equals(assetId).toArray()
+    } else {
+      changes.value = await db.db.assetChanges.toArray()
+    }
+  }
+
+  async function addAsset(asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>) {
+    const now = new Date().toISOString()
+    const newAsset: Asset = {
+      ...asset,
+      id: `asset_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: now,
+      updatedAt: now
+    }
+    await db.db.assets.add(newAsset)
+    await loadAssets()
+    return newAsset
+  }
+
+  async function updateAsset(id: string, updates: Partial<Asset>) {
+    await db.db.assets.update(id, {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    })
+    await loadAssets()
+  }
+
+  async function deleteAsset(id: string) {
+    await db.db.assets.delete(id)
+    await loadAssets()
+  }
+
+  async function addAssetChange(change: Omit<AssetChange, 'id' | 'createdAt'>) {
+    const now = new Date().toISOString()
+    const newChange: AssetChange = {
+      ...change,
+      id: `change_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: now
+    }
+    await db.db.assetChanges.add(newChange)
+    return newChange
+  }
+
+  function getCategoryById(id: string) {
+    return categories.value.find(c => c.id === id)
+  }
+
+  function getCategoryTree() {
+    return categories.value.filter(c => !c.parentId).map(parent => ({
+      ...parent,
+      children: categories.value.filter(c => c.parentId === parent.id)
+    }))
+  }
+
+  return {
+    // 状态
+    assets,
+    categories,
+    changes,
+    loading,
+    // 计算属性
+    activeAssets,
+    fixedAssets,
+    liquidAssets,
+    investmentAssets,
+    liabilities,
+    statistics,
+    distribution,
+    // 方法
+    loadAssets,
+    loadCategories,
+    loadChanges,
+    addAsset,
+    updateAsset,
+    deleteAsset,
+    addAssetChange,
+    getCategoryById,
+    getCategoryTree
+  }
+})
