@@ -154,3 +154,42 @@ body {
 .amount.expense {
   color: var(--color-error);
 }
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  html {
+    font-size: 13px;
+  }
+
+  body {
+    font-size: 13px;
+  }
+
+  /* 优化移动端滚动 */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 移动端按钮最小触摸区域 */
+  button,
+  .n-button {
+    min-height: 44px;
+  }
+
+  /* 移动端输入框最小高度 */
+  input,
+  textarea,
+  select {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 479px) {
+  html {
+    font-size: 12px;
+  }
+
+  body {
+    font-size: 12px;
+  }
+}

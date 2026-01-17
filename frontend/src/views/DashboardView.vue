@@ -210,4 +210,58 @@ function formatInteger(amount: number): string {
 .empty-card {
   text-align: center;
 }
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  .dashboard-view {
+    max-width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+  }
+
+  .stats-grid,
+  .charts-grid {
+    margin-bottom: 12px;
+  }
+
+  .asset-row {
+    padding: 10px 0;
+  }
+
+  .asset-row-label {
+    font-size: 13px;
+  }
+
+  /* 快速操作按钮 */
+  .action-card :deep(.n-space) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  .action-card :deep(.n-button) {
+    flex: 1;
+    min-width: calc(50% - 4px);
+  }
+}
+
+@media (max-width: 479px) {
+  .stat-value {
+    font-size: 18px;
+  }
+
+  .asset-row-value {
+    font-size: 14px;
+  }
+}
 </style>

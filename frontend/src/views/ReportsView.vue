@@ -575,4 +575,64 @@ onMounted(async () => {
 .amount--expense {
   color: var(--color-error);
 }
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  .reports-view {
+    max-width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+  }
+
+  .filter-card,
+  .chart-card,
+  .table-card {
+    margin-bottom: 12px;
+  }
+
+  .stats-grid {
+    margin-bottom: 12px;
+  }
+
+  /* 筛选器适配 */
+  .filter-card :deep(.n-space) {
+    flex-wrap: wrap;
+  }
+
+  .filter-label {
+    font-size: 13px;
+  }
+
+  /* 图表容器适配 */
+  .chart-container--line {
+    height: 240px;
+  }
+
+  .chart-container--pie {
+    height: 200px;
+  }
+
+  .chart-container--bar {
+    height: 200px;
+  }
+
+  /* 表格滚动 */
+  .table-card :deep(.n-data-table) {
+    overflow-x: auto;
+  }
+
+  .table-card :deep(.n-data-table-wrapper) {
+    overflow-x: auto;
+  }
+}
 </style>

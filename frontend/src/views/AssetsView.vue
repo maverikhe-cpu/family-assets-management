@@ -651,4 +651,69 @@ function getCurrencySymbol(currency: string) {
 :deep(.n-select) {
   min-width: 120px;
 }
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  .assets-view {
+    max-width: 100%;
+  }
+
+  .filter-bar {
+    margin-bottom: 12px;
+  }
+
+  .filter-row {
+    gap: 8px;
+  }
+
+  /* 筛选器适配 */
+  .filter-row :deep(.n-input-group),
+  .filter-row :deep(.n-select) {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+
+  .filter-row :deep(.n-button) {
+    flex: 1;
+    min-width: calc(50% - 4px);
+  }
+
+  /* 表格滚动 */
+  :deep(.n-data-table) {
+    overflow-x: auto;
+  }
+
+  :deep(.n-data-table-wrapper) {
+    overflow-x: auto;
+  }
+
+  /* 隐藏部分列在移动端 */
+  :deep(.n-data-table-th__selection),
+  :deep(.n-data-table-td__selection) {
+    display: none;
+  }
+
+  /* 弹窗适配 */
+  :deep(.n-modal) {
+    max-width: 100vw;
+  }
+
+  :deep(.n-modal .n-card) {
+    max-width: 100vw;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  /* 按钮适配 */
+  :deep(.n-space) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  :deep(.n-space .n-button) {
+    flex: 1;
+    min-width: calc(50% - 4px);
+  }
+}
 </style>

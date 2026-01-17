@@ -429,4 +429,54 @@ async function handleResetCategories() {
 .import-list li {
   margin: 4px 0;
 }
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  .settings-view {
+    max-width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+  }
+
+  .setting-card {
+    margin-bottom: 12px;
+  }
+
+  .section-desc {
+    font-size: 12px;
+  }
+
+  /* 按钮适配 */
+  .setting-card :deep(.n-space) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  .setting-card :deep(.n-button) {
+    flex: 1;
+    min-width: calc(50% - 4px);
+  }
+
+  /* 弹窗适配 */
+  :deep(.n-modal) {
+    max-width: 100vw;
+  }
+
+  :deep(.n-card) {
+    max-width: 100vw;
+    margin: 0;
+    border-radius: 0;
+  }
+}
 </style>

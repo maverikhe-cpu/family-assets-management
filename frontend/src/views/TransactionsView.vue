@@ -423,4 +423,83 @@ async function handleDelete(id: string) {
   font-feature-settings: 'tnum';
   font-variant-numeric: tabular-nums;
 }
+
+/* 移动端适配 */
+@media (max-width: 767px) {
+  .transactions-view {
+    max-width: 100%;
+  }
+
+  .page-header {
+    margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-size: 20px;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+  }
+
+  .summary-card {
+    margin-bottom: 12px;
+  }
+
+  .summary {
+    padding: 4px 0;
+  }
+
+  .summary-value {
+    font-size: 18px;
+  }
+
+  /* 统计摘要横向滚动 */
+  .summary {
+    overflow-x: auto;
+    gap: 20px !important;
+  }
+
+  .summary-item {
+    min-width: 100px;
+  }
+
+  /* 按钮适配 */
+  .table-card :deep(.n-space) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px !important;
+  }
+
+  .table-card :deep(.n-button) {
+    flex: 1;
+    min-width: calc(50% - 4px);
+  }
+
+  /* 表格适配 */
+  .table-card :deep(.n-data-table) {
+    overflow-x: auto;
+  }
+
+  .table-card :deep(.n-data-table-wrapper) {
+    overflow-x: auto;
+  }
+
+  /* 弹窗适配 */
+  :deep(.n-modal) {
+    max-width: 100vw;
+  }
+
+  :deep(.n-card) {
+    max-width: 100vw;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  /* 操作列隐藏在移动端，使用详情页替代 */
+  .table-card :deep(.n-data-table-th__action),
+  .table-card :deep(.n-data-table-td__action) {
+    display: none;
+  }
+}
 </style>
