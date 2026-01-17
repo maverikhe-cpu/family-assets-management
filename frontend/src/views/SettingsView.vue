@@ -1,69 +1,161 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { NCard, NSpace, NButton, NModal, NAlert, NSpin, NProgress } from 'naive-ui'
+import { ref, computed } from 'vue'
+import { NCard, NSpace, NButton, NModal, NAlert, NSpin, NProgress, NUpload, NUploadFileInfo, NInput } from 'naive-ui'
 import { useAssetStore } from '@/stores/assets'
+import { useTransactionStore } from '@/stores/transactions'
 import { useMemberStore } from '@/stores/members'
+import {
+  exportAssetsToExcel,
+  exportTransactionsToExcel,
+  exportAnnualReport,
+  exportBackup,
+  importBackup
+} from '@/utils/export'
 import * as db from '@/db'
 
 const assetStore = useAssetStore()
+const transactionStore = useTransactionStore()
 const memberStore = useMemberStore()
 
-const showExportModal = ref(false)
 const showImportModal = ref(false)
-const showClearModal = ref(false)
-const exportData = ref('')
+const showBackupModal = ref(false)
 const importStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const importMessage = ref('')
 const importProgress = ref(0)
 
-async function handleExport() {
-  const assets = await db.db.assets.toArray()
-  const transactions = await db.db.transactions.toArray()
-  const assetCategories = await db.db.assetCategories.toArray()
-  const transactionCategories = await db.db.transactionCategories.toArray()
+// 备份文件上传
+const fileList = ref<NUploadFileInfo[]>([])
+const backupStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
+const backupMessage = ref('')
 
-  exportData.value = JSON.stringify({
-    assets,
-    transactions,
-    assetCategories,
-    transactionCategories,
-    exportDate: new Date().toISOString()
-  }, null, 2)
-
-  showExportModal.value = true
+// 导出资产列表
+function handleExportAssets() {
+  exportAssetsToExcel(
+    assetStore.assets,
+    memberStore.getMemberName,
+    (id: string) => assetStore.getCategoryById(id)?.name || '-'
+  )
 }
 
-function downloadExport() {
-  const blob = new Blob([exportData.value], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `family-assets-backup-${new Date().toISOString().split('T')[0]}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-  showExportModal.value = false
+// 导出交易记录
+function handleExportTransactions() {
+  exportTransactionsToExcel(
+    transactionStore.transactions,
+    memberStore.getMemberName,
+    (id: string) => transactionStore.getCategoryById(id)?.name || '-'
+  )
 }
 
+// 导出年度报告
+function handleExportAnnualReport() {
+  exportAnnualReport({
+    assets: assetStore.assets,
+    transactions: transactionStore.transactions,
+    statistics: assetStore.statistics,
+    getMemberName: memberStore.getMemberName,
+    getCategoryName: (id: string) => assetStore.getCategoryById(id)?.name || '-'
+  })
+}
+
+// 导出完整备份
+function handleExportBackup() {
+  exportBackup({
+    assets: assetStore.assets,
+    transactions: transactionStore.transactions,
+    categories: assetStore.categories,
+    members: memberStore.members,
+    statistics: assetStore.statistics
+  })
+}
+
+// 处理备份文件选择
+function handleBackupSelect(options: { fileList: NUploadFileInfo[] }) {
+  fileList.value = options.fileList
+}
+
+// 处理备份恢复
+async function handleRestoreBackup() {
+  if (fileList.value.length === 0) {
+    backupMessage.value = '请先选择备份文件'
+    backupStatus.value = 'error'
+    return
+  }
+
+  const file = fileList.value[0].file
+  if (!file) return
+
+  backupStatus.value = 'loading'
+  backupMessage.value = '正在恢复数据...'
+
+  try {
+    const backup = await importBackup(file)
+
+    // 清空现有数据
+    await db.db.assets.clear()
+    await db.db.transactions.clear()
+    await db.db.assetCategories.clear()
+    await db.db.transactionCategories.clear()
+
+    // 恢复资产
+    if (backup.data.assets?.length > 0) {
+      await db.db.assets.bulkAdd(backup.data.assets)
+    }
+
+    // 恢复交易
+    if (backup.data.transactions?.length > 0) {
+      await db.db.transactions.bulkAdd(backup.data.transactions)
+    }
+
+    // 恢复分类
+    if (backup.data.categories?.length > 0) {
+      await db.db.assetCategories.bulkAdd(backup.data.categories)
+    }
+
+    // 恢复成员
+    if (backup.data.members?.length > 0) {
+      localStorage.setItem('family_members', JSON.stringify(backup.data.members))
+    }
+
+    // 重新加载数据
+    await assetStore.loadCategories()
+    await assetStore.loadAssets()
+    await transactionStore.loadCategories()
+    await transactionStore.loadTransactions()
+    await memberStore.loadMembers()
+
+    backupStatus.value = 'success'
+    backupMessage.value = `恢复成功！共恢复 ${backup.data.assets?.length || 0} 项资产，${backup.data.transactions?.length || 0} 条交易`
+
+    setTimeout(() => {
+      showBackupModal.value = false
+      fileList.value = []
+      backupStatus.value = 'idle'
+      location.reload()
+    }, 2000)
+  } catch (error) {
+    backupStatus.value = 'error'
+    backupMessage.value = `恢复失败：${error}`
+  }
+}
+
+// 导入初始数据
 async function handleImport() {
   importStatus.value = 'loading'
   importMessage.value = '正在导入数据...'
   importProgress.value = 0
 
   try {
-    // 获取导入数据
     const response = await fetch('/import-data.json')
     const data = await response.json()
 
     importProgress.value = 30
     importMessage.value = `找到 ${data.length} 条资产记录`
 
-    // 导入资产
     const count = await db.importAssets(data)
 
     importProgress.value = 80
     importMessage.value = `成功导入 ${count} 条资产`
 
-    // 重新加载数据
     await assetStore.loadAssets()
     await memberStore.loadMembers()
 
@@ -71,30 +163,29 @@ async function handleImport() {
     importStatus.value = 'success'
     importMessage.value = `导入完成！成功导入 ${count} 条资产记录，${memberStore.members.length} 位成员`
 
-    // 3秒后关闭弹窗
     setTimeout(() => {
       showImportModal.value = false
       importStatus.value = 'idle'
       importProgress.value = 0
     }, 3000)
-
   } catch (error) {
     importStatus.value = 'error'
     importMessage.value = `导入失败：${error}`
   }
 }
 
+// 清空数据
 async function handleClear() {
   if (confirm('确定要清空所有数据吗？此操作不可恢复！')) {
     await db.db.assets.clear()
     await db.db.transactions.clear()
     await db.db.assetChanges.clear()
     await db.db.budgets.clear()
-    // 不清除默认分类
     location.reload()
   }
 }
 
+// 重置分类
 async function handleResetCategories() {
   if (confirm('确定要重置分类吗？这将清除所有自定义分类')) {
     await db.db.assetCategories.clear()
@@ -109,28 +200,57 @@ async function handleResetCategories() {
 <template>
   <div class="settings-view">
     <NSpace vertical :size="24">
-      <NCard title="数据导入">
+      <!-- Excel 导出 -->
+      <NCard title="导出到 Excel">
         <NSpace vertical :size="12">
-          <p>从预置数据文件导入初始资产数据（包含33条资产记录）</p>
+          <p class="section-desc">将数据导出为 Excel 文件，方便查看和分享</p>
+          <NSpace :size="12">
+            <NButton @click="handleExportAssets">
+              📊 导出资产列表
+            </NButton>
+            <NButton @click="handleExportTransactions">
+              📝 导出交易记录
+            </NButton>
+            <NButton @click="handleExportAnnualReport">
+              📈 导出年度报告
+            </NButton>
+          </NSpace>
+        </NSpace>
+      </NCard>
+
+      <!-- 数据备份与恢复 -->
+      <NCard title="数据备份与恢复">
+        <NSpace vertical :size="12">
+          <p class="section-desc">创建完整数据备份或在需要时恢复数据</p>
+          <NSpace :size="12">
+            <NButton type="primary" @click="handleExportBackup">
+              💾 创建备份文件
+            </NButton>
+            <NButton @click="showBackupModal = true">
+              📂 从备份恢复
+            </NButton>
+          </NSpace>
+        </NSpace>
+      </NCard>
+
+      <!-- 初始数据导入 -->
+      <NCard title="导入初始数据">
+        <NSpace vertical :size="12">
+          <p>从预置数据文件导入初始资产数据（{{ assetStore.assets.length > 0 ? '已有数据，导入将追加' : '包含33条资产记录' }}）</p>
           <p style="color: #666; font-size: 12px;">包含资产：房产、股票基金、银行存款、保险等，支持多币种（CNY/USD/HKD/GBP）</p>
           <NButton type="primary" @click="showImportModal = true">导入初始数据</NButton>
         </NSpace>
       </NCard>
 
-      <NCard title="数据导出">
+      <!-- 数据管理 -->
+      <NCard title="数据管理">
         <NSpace vertical :size="12">
-          <p>导出您的数据到本地，可用于备份或迁移</p>
-          <NButton @click="handleExport">导出数据</NButton>
+          <p>重置分类为默认模板</p>
+          <NButton @click="handleResetCategories">重置分类</NButton>
         </NSpace>
       </NCard>
 
-      <NCard title="重置分类">
-        <NSpace vertical :size="12">
-          <p>将所有分类重置为默认模板，自定义分类将丢失</p>
-          <NButton @click="handleResetCategories">重置为默认分类</NButton>
-        </NSpace>
-      </NCard>
-
+      <!-- 危险区域 -->
       <NCard title="危险区域">
         <NAlert type="error" title="警告" style="margin-bottom: 12px">
           以下操作不可逆，请谨慎操作
@@ -141,6 +261,7 @@ async function handleResetCategories() {
         </NSpace>
       </NCard>
 
+      <!-- 关于 -->
       <NCard title="关于">
         <NSpace vertical>
           <p><strong>家庭资产管家</strong></p>
@@ -151,7 +272,7 @@ async function handleResetCategories() {
       </NCard>
     </NSpace>
 
-    <!-- 导入数据弹窗 -->
+    <!-- 导入初始数据弹窗 -->
     <NModal
       v-model:show="showImportModal"
       preset="card"
@@ -195,19 +316,50 @@ async function handleResetCategories() {
       </template>
     </NModal>
 
-    <!-- 导出数据弹窗 -->
+    <!-- 备份恢复弹窗 -->
     <NModal
-      v-model:show="showExportModal"
+      v-model:show="showBackupModal"
       preset="card"
-      title="导出数据"
-      style="width: 600px"
+      title="从备份恢复数据"
+      style="width: 500px"
     >
-      <p style="margin-bottom: 12px;">复制下方内容保存，或直接下载</p>
-      <pre style="background: #f5f5f5; padding: 12px; border-radius: 4px; overflow: auto; max-height: 300px;">{{ exportData }}</pre>
+      <NSpace vertical :size="16">
+        <p>选择之前创建的备份文件（.json）来恢复数据</p>
+        <p style="color: #f56c6c; font-size: 12px;">⚠️ 恢复将覆盖现有所有数据，请谨慎操作</p>
+
+        <NUpload
+          :file-list="fileList"
+          @update:file-list="handleBackupSelect"
+          :show-file-list="true"
+          :max="1"
+          accept=".json"
+        >
+          <NButton>选择备份文件</NButton>
+        </NUpload>
+
+        <NAlert v-if="backupStatus === 'success'" type="success">
+          {{ backupMessage }}
+        </NAlert>
+        <NAlert v-else-if="backupStatus === 'error'" type="error">
+          {{ backupMessage }}
+        </NAlert>
+        <NSpin v-else-if="backupStatus === 'loading'" :show="true">
+          {{ backupMessage }}
+        </NSpin>
+      </NSpace>
+
       <template #footer>
         <NSpace justify="end">
-          <NButton @click="showExportModal = false">关闭</NButton>
-          <NButton type="primary" @click="downloadExport">下载 JSON 文件</NButton>
+          <NButton @click="showBackupModal = false" :disabled="backupStatus === 'loading'">
+            取消
+          </NButton>
+          <NButton
+            type="primary"
+            @click="handleRestoreBackup"
+            :disabled="backupStatus === 'loading' || fileList.length === 0"
+          >
+            恢复数据
+          </NButton>
         </NSpace>
       </template>
     </NModal>
@@ -218,6 +370,12 @@ async function handleResetCategories() {
 .settings-view {
   max-width: 800px;
   margin: 0 auto;
+}
+
+.section-desc {
+  margin: 0;
+  color: #666;
+  font-size: 13px;
 }
 
 ul {
