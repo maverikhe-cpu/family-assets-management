@@ -17,13 +17,16 @@ import {
   NPopconfirm,
   NInputGroup,
   NEmpty,
+  NStatistic,
+  NGi,
+  NGrid,
   type DataTableColumns,
   type FormInst
 } from 'naive-ui'
 import { useAssetStore } from '@/stores/assets'
 import { useMemberStore } from '@/stores/members'
 import type { Asset } from '@/types'
-import { formatAssetValue, currencySymbols } from '@/utils/currency'
+import { formatAssetValue, currencySymbols, exchangeRates, formatCurrency } from '@/utils/currency'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -162,6 +165,55 @@ const filteredAndSortedAssets = computed(() => {
   })
 
   return result
+})
+
+// 统计数据
+const assetStats = computed(() => {
+  const assets = filteredAndSortedAssets.value
+
+  // 总记录数
+  const totalCount = assets.length
+
+  // 按币种统计当前价值
+  const valueByCurrency: Record<string, number> = {}
+  let totalValueInBase = 0
+
+  for (const asset of assets) {
+    const currency = asset.currency
+    const value = asset.currentValue || 0
+
+    if (!valueByCurrency[currency]) {
+      valueByCurrency[currency] = 0
+    }
+    valueByCurrency[currency] += value
+
+    // 累计转换为基准货币
+    const rate = exchangeRates[currency] || 1
+    totalValueInBase += value * rate
+  }
+
+  // 按成员统计
+  const valueByMember: Record<string, { name: string; color: string; value: number }> = {}
+  for (const asset of assets) {
+    const memberId = asset.holderId || 'unknown'
+    const member = memberStore.getMemberById(memberId)
+    const memberName = member?.name || '未设置'
+    const memberColor = member?.color || '#999'
+
+    if (!valueByMember[memberId]) {
+      valueByMember[memberId] = { name: memberName, color: memberColor, value: 0 }
+    }
+
+    const rate = exchangeRates[asset.currency] || 1
+    valueByMember[memberId].value += (asset.currentValue || 0) * rate
+  }
+
+  return {
+    totalCount,
+    valueByCurrency,
+    totalValueInBase,
+    valueByMember: Object.values(valueByMember).sort((a, b) => b.value - a.value)
+  }
 })
 
 // 清空筛选
@@ -406,6 +458,50 @@ function getCurrencySymbol(currency: string) {
 
 <template>
   <div class="assets-view">
+    <!-- 统计卡片 -->
+    <NCard class="stats-card">
+      <NGrid :cols="4" :x-gap="16" responsive="screen">
+        <NGi>
+          <NStatistic label="资产总数" :value="assetStats.totalCount">
+            <template #prefix>📊</template>
+          </NStatistic>
+        </NGi>
+        <NGi>
+          <NStatistic label="总价值（折合CNY）" :value="assetStats.totalValueInBase" :precision="2">
+            <template #prefix>¥</template>
+          </NStatistic>
+        </NGi>
+        <NGi span="2">
+          <div class="currency-breakdown">
+            <div class="breakdown-title">币种分布</div>
+            <div class="breakdown-content">
+              <span
+                v-for="[currency, value] in Object.entries(assetStats.valueByCurrency)"
+                :key="currency"
+                class="currency-tag"
+              >
+                {{ currencySymbols[currency] || currency }}{{ formatCurrency(value, currency, false) }}
+              </span>
+              <span v-if="Object.keys(assetStats.valueByCurrency).length === 0" class="empty-hint">暂无数据</span>
+            </div>
+          </div>
+        </NGi>
+      </NGrid>
+    </NCard>
+
+    <!-- 成员资产分布 -->
+    <NCard v-if="assetStats.valueByMember.length > 0" class="member-stats-card">
+      <template #header>成员资产分布</template>
+      <NGrid :cols="assetStats.valueByMember.length" :x-gap="12" responsive="screen">
+        <NGi v-for="member in assetStats.valueByMember" :key="member.name">
+          <div class="member-stat-item">
+            <div class="member-name" :style="{ color: member.color }">{{ member.name }}</div>
+            <div class="member-value">¥{{ formatCurrency(member.value, 'CNY', false) }}</div>
+          </div>
+        </NGi>
+      </NGrid>
+    </NCard>
+
     <NCard title="资产管理">
       <template #header-extra>
         <NSpace>
@@ -627,6 +723,69 @@ function getCurrencySymbol(currency: string) {
 .assets-view {
   max-width: 1200px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stats-card {
+  margin-bottom: 0;
+}
+
+.member-stats-card {
+  margin-bottom: 0;
+}
+
+.currency-breakdown {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.breakdown-title {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.breakdown-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.currency-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: var(--n-color-modal);
+  border: 1px solid var(--n-border-color);
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.empty-hint {
+  color: #999;
+  font-size: 12px;
+}
+
+.member-stat-item {
+  text-align: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--n-color-modal);
+}
+
+.member-name {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.member-value {
+  font-size: 18px;
+  font-weight: bold;
 }
 
 .filter-bar {
@@ -656,6 +815,41 @@ function getCurrencySymbol(currency: string) {
 @media (max-width: 767px) {
   .assets-view {
     max-width: 100%;
+    gap: 12px;
+  }
+
+  /* 统计卡片移动端适配 */
+  :deep(.stats-card .n-grid) {
+    grid-template-columns: 1fr !important;
+  }
+
+  :deep(.stats-card .n-gi) {
+    min-width: 100%;
+  }
+
+  :deep(.member-stats-card .n-grid) {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .breakdown-content {
+    justify-content: flex-start;
+  }
+
+  .currency-tag {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+
+  .member-stat-item {
+    padding: 6px;
+  }
+
+  .member-name {
+    font-size: 12px;
+  }
+
+  .member-value {
+    font-size: 14px;
   }
 
   .filter-bar {
