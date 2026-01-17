@@ -483,8 +483,9 @@ function getCurrencySymbol(currency: string) {
           </NStatistic>
         </NGi>
         <NGi>
-          <NStatistic label="总价值（折合CNY）" :value="assetStats.totalValueInBase" :precision="2">
+          <NStatistic label="总价值（折合CNY）">
             <template #prefix>¥</template>
+            <span class="stat-value">{{ formatCurrency(assetStats.totalValueInBase, 'CNY', false) }}</span>
           </NStatistic>
         </NGi>
         <NGi span="2">
@@ -746,6 +747,12 @@ function getCurrencySymbol(currency: string) {
 
 .stats-card {
   margin-bottom: 0;
+}
+
+.stat-value {
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
 }
 
 .member-stats-card {
