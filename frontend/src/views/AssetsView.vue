@@ -171,14 +171,28 @@ const filteredAndSortedAssets = computed(() => {
 const assetStats = computed(() => {
   const assets = filteredAndSortedAssets.value
 
-  // 总记录数
+  // 获取负债分类的ID列表（用于排除）
+  const liabilityParentCategory = assetStore.categories.find(c => c.name === '负债' && !c.parentId)
+  const liabilityCategoryIds = liabilityParentCategory
+    ? assetStore.categories.filter(c => c.parentId === liabilityParentCategory.id).map(c => c.id)
+    : []
+
+  // 过滤出活跃的非负债资产（与仪表盘保持一致）
+  const activeNonLiabilityAssets = assets.filter(a =>
+    a.status === 'active' && !liabilityCategoryIds.includes(a.categoryId)
+  )
+
+  // 总记录数（显示所有筛选后的记录数）
   const totalCount = assets.length
 
-  // 按币种统计当前价值
+  // 活跃资产记录数
+  const activeCount = activeNonLiabilityAssets.length
+
+  // 按币种统计当前价值（只统计活跃非负债资产）
   const valueByCurrency: Record<string, number> = {}
   let totalValueInBase = 0
 
-  for (const asset of assets) {
+  for (const asset of activeNonLiabilityAssets) {
     const currency = asset.currency
     const value = asset.currentValue || 0
 
@@ -192,9 +206,9 @@ const assetStats = computed(() => {
     totalValueInBase += value * rate
   }
 
-  // 按成员统计
+  // 按成员统计（只统计活跃非负债资产）
   const valueByMember: Record<string, { name: string; color: string; value: number }> = {}
-  for (const asset of assets) {
+  for (const asset of activeNonLiabilityAssets) {
     const memberId = asset.holderId || 'unknown'
     const member = memberStore.getMemberById(memberId)
     const memberName = member?.name || '未设置'
@@ -210,6 +224,7 @@ const assetStats = computed(() => {
 
   return {
     totalCount,
+    activeCount,
     valueByCurrency,
     totalValueInBase,
     valueByMember: Object.values(valueByMember).sort((a, b) => b.value - a.value)
@@ -464,6 +479,7 @@ function getCurrencySymbol(currency: string) {
         <NGi>
           <NStatistic label="资产总数" :value="assetStats.totalCount">
             <template #prefix>📊</template>
+            <template #suffix>/ 活跃 {{ assetStats.activeCount }}</template>
           </NStatistic>
         </NGi>
         <NGi>
