@@ -1,0 +1,226 @@
+// Prisma Schema for Family Assets Management
+// 迁移自 TypeORM Entities
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// Enums
+// =============================================================================
+
+enum UserRole {
+  admin
+  editor
+  viewer
+}
+
+enum FamilyMemberRole {
+  owner
+  admin
+  member
+  viewer
+}
+
+enum AssetStatus {
+  active
+  disposed
+  pending
+}
+
+enum AssetChangeType {
+  buy
+  sell
+  transfer_in
+  transfer_out
+  valuation_adjust
+  depreciation
+  dispose
+}
+
+enum TransactionType {
+  income
+  expense
+  transfer
+}
+
+enum CategoryType {
+  income
+  expense
+}
+
+// =============================================================================
+// Models
+// =============================================================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(editor)
+  familyId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  assets       Asset[]
+  transactions Transaction[]
+  familyMemberships FamilyMember[]
+
+  @@map("users")
+}
+
+model Family {
+  id         String   @id @default(uuid())
+  name       String
+  description String?
+  createdBy  String
+  inviteCode String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  members              FamilyMember[]
+  assets               Asset[]
+  assetCategories      AssetCategory[]
+  transactionCategories TransactionCategory[]
+  transactions         Transaction[]
+
+  @@map("families")
+}
+
+model FamilyMember {
+  id        String           @id @default(uuid())
+  familyId  String
+  userId    String
+  role      FamilyMemberRole @default(member)
+  invitedBy String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // Relations
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, userId])
+  @@map("family_members")
+}
+
+model AssetCategory {
+  id        String   @id @default(uuid())
+  name      String
+  parentId  String?
+  familyId  String
+  icon      String
+  color     String
+  isBuiltin Boolean  @default(false)
+  order     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  family   Family        @relation(fields: [familyId], references: [id])
+  parent   AssetCategory? @relation("AssetCategoryToAssetCategory", fields: [parentId], references: [id])
+  children AssetCategory[] @relation("AssetCategoryToAssetCategory")
+  assets   Asset[]
+
+  @@map("asset_categories")
+}
+
+model Asset {
+  id           String      @id @default(uuid())
+  name         String
+  categoryId   String
+  familyId     String
+  holderId     String
+  initialValue Decimal     @db.Decimal(12, 2)
+  currentValue Decimal     @db.Decimal(12, 2)
+  currency     String      @default("CNY")
+  purchaseDate DateTime
+  status       AssetStatus @default(active)
+  attributes   Json?
+  notes        String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  // Relations
+  category  AssetCategory  @relation(fields: [categoryId], references: [id])
+  family    Family         @relation(fields: [familyId], references: [id])
+  holder    User           @relation(fields: [holderId], references: [id])
+  changes   AssetChange[]
+
+  @@map("assets")
+}
+
+model AssetChange {
+  id                    String          @id @default(uuid())
+  assetId               String
+  type                  AssetChangeType
+  amount                Decimal         @db.Decimal(12, 2)
+  beforeValue           Decimal         @db.Decimal(12, 2)
+  afterValue            Decimal         @db.Decimal(12, 2)
+  profitLoss            Decimal?        @db.Decimal(12, 2)
+  profitLossRate        Decimal?        @db.Decimal(5, 2)
+  relatedTransactionId  String?
+  relatedAssetId        String?
+  date                  DateTime
+  notes                 String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  // Relations
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@map("asset_changes")
+}
+
+model TransactionCategory {
+  id        String       @id @default(uuid())
+  name      String
+  type      CategoryType
+  familyId  String
+  parentId  String?
+  icon      String
+  color     String
+  isBuiltin Boolean      @default(false)
+  order     Int
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Relations
+  family   Family                @relation(fields: [familyId], references: [id])
+  parent   TransactionCategory?   @relation("TransactionCategoryToTransactionCategory", fields: [parentId], references: [id])
+  children TransactionCategory[] @relation("TransactionCategoryToTransactionCategory")
+  transactions Transaction[]
+
+  @@map("transaction_categories")
+}
+
+model Transaction {
+  id               String          @id @default(uuid())
+  type             TransactionType
+  amount           Decimal         @db.Decimal(12, 2)
+  categoryId       String
+  accountId        String
+  familyId         String
+  memberId         String
+  date             DateTime
+  notes            String?
+  tags             String[]
+  relatedAssetId   String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Relations
+  category TransactionCategory @relation(fields: [categoryId], references: [id])
+  family    Family             @relation(fields: [familyId], references: [id])
+  member    User               @relation(fields: [memberId], references: [id])
+
+  @@map("transactions")
+}

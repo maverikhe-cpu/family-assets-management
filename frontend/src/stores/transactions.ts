@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Transaction, TransactionCategory } from '@/types'
-import { api } from '@/api/client'
+import * as db from '@/db'
 
 export const useTransactionStore = defineStore('transactions', () => {
   // 状态
@@ -99,50 +99,40 @@ export const useTransactionStore = defineStore('transactions', () => {
   async function loadTransactions() {
     loading.value = true
     try {
-      transactions.value = await api.transactions.getAll()
-      // 按日期倒序排序
-      transactions.value.sort((a, b) => b.date.localeCompare(a.date))
-    } catch (error) {
-      console.error('Failed to load transactions:', error)
-      throw error
+      transactions.value = await db.db.transactions.orderBy('date').reverse().toArray()
     } finally {
       loading.value = false
     }
   }
 
   async function loadCategories() {
-    try {
-      // 加载所有分类（收入和支出）
-      const [incomeCats, expenseCats] = await Promise.all([
-        api.transactions.getCategories('income'),
-        api.transactions.getCategories('expense')
-      ])
-      categories.value = [...incomeCats, ...expenseCats]
-    } catch (error) {
-      console.error('Failed to load categories:', error)
-      throw error
-    }
+    categories.value = await db.db.transactionCategories.toArray()
   }
 
   async function addTransaction(transaction: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>) {
-    const response = await api.transactions.create(transaction)
-    transactions.value.unshift(response as Transaction)
-    return response as Transaction
+    const now = new Date().toISOString()
+    const newTransaction: Transaction = {
+      ...transaction,
+      id: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      createdAt: now,
+      updatedAt: now
+    }
+    await db.db.transactions.add(newTransaction)
+    await loadTransactions()
+    return newTransaction
   }
 
   async function updateTransaction(id: string, updates: Partial<Transaction>) {
-    const response = await api.transactions.update(id, updates)
-    // 更新本地状态
-    const index = transactions.value.findIndex(t => t.id === id)
-    if (index !== -1) {
-      transactions.value[index] = response as Transaction
-    }
-    return response as Transaction
+    await db.db.transactions.update(id, {
+      ...updates,
+      updatedAt: new Date().toISOString()
+    })
+    await loadTransactions()
   }
 
   async function deleteTransaction(id: string) {
-    await api.transactions.delete(id)
-    transactions.value = transactions.value.filter(t => t.id !== id)
+    await db.db.transactions.delete(id)
+    await loadTransactions()
   }
 
   function getCategoryById(id: string) {
