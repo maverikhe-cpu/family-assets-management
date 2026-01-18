@@ -5,7 +5,7 @@
 将家庭资产管理系统从 Vue 3 + NestJS 前后端分离架构迁移到 Next.js 15 全栈架构，实现单一 Vercel 部署。
 
 ## Current Phase
-Phase 3: 认证系统 (NextAuth.js v5)
+Phase 4: API Routes 迁移
 
 ## Phases
 
@@ -26,22 +26,19 @@ Phase 3: 认证系统 (NextAuth.js v5)
 - **Status:** complete
 
 ### Phase 3: 认证系统 (NextAuth.js v5)
-- [ ] 安装 NextAuth.js v5
-- [ ] 配置 JWT 策略
-- [ ] 实现登录/注册 API
-- [ ] 实现 Family Context 处理
-- [ ] 权限中间件
-- **Status:** in_progress
+- [x] 安装 NextAuth.js v5
+- [x] 配置 JWT 策略
+- [x] 实现登录/注册 API
+- [x] 实现 Family Context 处理
+- [x] 权限中间件
+- **Status:** complete
 
 ### Phase 4: API Routes 迁移
-- [ ] Auth API (3个端点)
-  - POST /api/auth/login
-  - POST /api/auth/register
-  - GET /api/auth/profile
-- [ ] Families API (11个端点)
+- [x] Auth API (3个端点)
+- [x] Families API (11个端点)
 - [ ] Assets API (7个端点)
 - [ ] Transactions API (7个端点)
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 5: 前端页面迁移 (Vue → React)
 - [ ] 布局组件 (Layout, Header, Sidebar)
