@@ -5,7 +5,7 @@
 将家庭资产管理系统从 Vue 3 + NestJS 前后端分离架构迁移到 Next.js 15 全栈架构，实现单一 Vercel 部署。
 
 ## Current Phase
-Phase 4: API Routes 迁移
+Phase 5: 前端页面迁移 (Vue → React)
 
 ## Phases
 
@@ -36,19 +36,21 @@ Phase 4: API Routes 迁移
 ### Phase 4: API Routes 迁移
 - [x] Auth API (3个端点)
 - [x] Families API (11个端点)
-- [ ] Assets API (7个端点)
-- [ ] Transactions API (7个端点)
-- **Status:** in_progress
+- [x] Assets API (7个端点)
+- [x] Transactions API (7个端点)
+- **Status:** complete
 
 ### Phase 5: 前端页面迁移 (Vue → React)
-- [ ] 布局组件 (Layout, Header, Sidebar)
-- [ ] Dashboard 页面
-- [ ] Assets 页面
+- [x] 布局组件 (Layout, Header, Sidebar)
+- [x] Dashboard 页面
+- [x] Assets 页面
+- [x] Settings 页面
+- [x] 登录/注册页面
+- [x] Zustand 状态管理
 - [ ] Asset Detail 页面
 - [ ] Transactions 页面
 - [ ] Reports 页面
-- [ ] Settings 页面
-- **Status:** pending
+- **Status:** in_progress
 
 ### Phase 6: UI 组件迁移
 - [ ] 表单组件 (AssetForm, TransactionForm)
@@ -58,10 +60,9 @@ Phase 4: API Routes 迁移
 - **Status:** pending
 
 ### Phase 7: 状态管理重构
-- [ ] Pinia → Server Components + React Context
-- [ ] 或使用 Zustand 实现客户端状态
-- [ ] API 调用层重构
-- **Status:** pending
+- [x] Zustand 实现
+- [ ] API 调用层完善
+- **Status:** in_progress
 
 ### Phase 8: 测试与部署
 - [ ] 单元测试
@@ -86,6 +87,7 @@ Phase 4: API Routes 迁移
 | NextAuth.js v5 | 行业标准，支持多种认证策略 |
 | Vercel Postgres | 与 Vercel 部署无缝集成 |
 | Prisma 6 instead of 7 | Prisma 7 配置格式变化较大，Prisma 6 更稳定 |
+| Zustand for state | 轻量级，类似 Pinia，支持持久化 |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
