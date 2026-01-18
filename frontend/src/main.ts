@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import router from './router'
 import App from './App.vue'
+import { registerDirectives } from './directives'
 
 // Naive UI
 import {
@@ -84,5 +85,8 @@ const app = createApp(App)
 app.use(createPinia())
 app.use(router)
 app.use(naive)
+
+// Register custom directives
+registerDirectives(app)
 
 app.mount('#app')
