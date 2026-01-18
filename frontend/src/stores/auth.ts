@@ -59,7 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await api.auth.login(email, password)
       setToken(response.access_token)
-      setUser(response.user)
+      setUser(response.user as User)
       // Family role is stored in the JWT and handled by the backend
       // We'll fetch it separately if needed
       return response
@@ -76,7 +76,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await api.auth.register(data)
       setToken(response.access_token)
-      setUser(response.user)
+      setUser(response.user as User)
       return response
     } catch (error) {
       console.error('Registration failed:', error)

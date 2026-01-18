@@ -1,75 +1,110 @@
-import axios, { type AxiosInstance, type AxiosRequestConfig } from 'axios'
-
 export interface ApiClientConfig {
   baseURL?: string
   timeout?: number
 }
 
+interface RequestConfig {
+  headers?: Record<string, string>
+  params?: Record<string, string>
+}
+
 export class ApiClient {
-  private client: AxiosInstance
+  private baseURL: string
+  private defaultHeaders: Record<string, string>
+  private timeout: number
 
   constructor(config: ApiClientConfig = {}) {
-    this.client = axios.create({
-      baseURL: config.baseURL || import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-      timeout: config.timeout || 10000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    this.baseURL = config.baseURL || import.meta.env.VITE_API_URL || 'http://localhost:3000/api'
+    this.timeout = config.timeout || 10000
+    this.defaultHeaders = {
+      'Content-Type': 'application/json',
+    }
+  }
 
-    // Request interceptor
-    this.client.interceptors.request.use(
-      (config) => {
-        const token = localStorage.getItem('auth_token')
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`
-        }
-        return config
-      },
-      (error) => Promise.reject(error)
-    )
+  private buildUrl(path: string, params?: Record<string, string>): string {
+    const url = new URL(path, this.baseURL)
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.append(key, value)
+      })
+    }
+    return url.toString()
+  }
 
-    // Response interceptor
-    this.client.interceptors.response.use(
-      (response) => response,
-      async (error) => {
-        if (error.response?.status === 401) {
-          // Token expired or invalid
-          localStorage.removeItem('auth_token')
-          window.location.href = '/login'
-        }
-        return Promise.reject(error)
+  private async request<T>(
+    method: string,
+    path: string,
+    data?: any,
+    config: RequestConfig = {},
+  ): Promise<T> {
+    const url = this.buildUrl(path, config.params)
+    const headers = { ...this.defaultHeaders, ...config.headers }
+
+    // Add auth token
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
+
+    const options: RequestInit = {
+      method,
+      headers,
+    }
+
+    if (data && method !== 'GET') {
+      options.body = JSON.stringify(data)
+    }
+
+    // Create abort controller for timeout
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout)
+    options.signal = controller.signal
+
+    try {
+      const response = await fetch(url, options)
+      clearTimeout(timeoutId)
+
+      // Handle 401 Unauthorized
+      if (response.status === 401) {
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('auth_user')
+        window.location.href = '/login'
+        throw new Error('Unauthorized')
       }
-    )
+
+      // Handle other errors
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }))
+        throw errorData
+      }
+
+      return await response.json()
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Request timeout')
+      }
+      throw error
+    }
   }
 
-  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.get<T>(url, config)
-    return response.data
+  async get<T>(url: string, config?: RequestConfig): Promise<T> {
+    return this.request<T>('GET', url, undefined, config)
   }
 
-  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.post<T>(url, data, config)
-    return response.data
+  async post<T>(url: string, data?: any, config?: RequestConfig): Promise<T> {
+    return this.request<T>('POST', url, data, config)
   }
 
-  async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.patch<T>(url, data, config)
-    return response.data
+  async patch<T>(url: string, data?: any, config?: RequestConfig): Promise<T> {
+    return this.request<T>('PATCH', url, data, config)
   }
 
-  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.delete<T>(url, config)
-    return response.data
+  async delete<T>(url: string, config?: RequestConfig): Promise<T> {
+    return this.request<T>('DELETE', url, undefined, config)
   }
 
-  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
-    const response = await this.client.put<T>(url, data, config)
-    return response.data
-  }
-
-  getClient() {
-    return this.client
+  async put<T>(url: string, data?: any, config?: RequestConfig): Promise<T> {
+    return this.request<T>('PUT', url, data, config)
   }
 }
 
@@ -105,8 +140,8 @@ export const api = {
   assets: {
     getAll: () => apiClient.get<any[]>('/assets'),
     getById: (id: string) => apiClient.get<any>(`/assets/${id}`),
-    create: (data: any) => apiClient.post('/assets', data),
-    update: (id: string, data: any) => apiClient.patch(`/assets/${id}`, data),
+    create: (data: unknown) => apiClient.post('/assets', data),
+    update: (id: string, data: unknown) => apiClient.patch(`/assets/${id}`, data),
     delete: (id: string) => apiClient.delete(`/assets/${id}`),
     getCategories: () => apiClient.get<any[]>('/assets/categories/list'),
     getChanges: (id: string) => apiClient.get<any[]>(`/assets/${id}/changes`),
@@ -116,8 +151,8 @@ export const api = {
   transactions: {
     getAll: () => apiClient.get<any[]>('/transactions'),
     getById: (id: string) => apiClient.get<any>(`/transactions/${id}`),
-    create: (data: any) => apiClient.post('/transactions', data),
-    update: (id: string, data: any) => apiClient.post(`/transactions/${id}`, data),
+    create: (data: unknown) => apiClient.post('/transactions', data),
+    update: (id: string, data: unknown) => apiClient.post(`/transactions/${id}`, data),
     delete: (id: string) => apiClient.delete(`/transactions/${id}`),
     getStatistics: () => apiClient.get<any>('/transactions/statistics'),
     getCategories: (type?: 'income' | 'expense') =>
@@ -127,18 +162,18 @@ export const api = {
   // Auth
   auth: {
     login: (email: string, password: string) =>
-      apiClient.post<{ access_token: string; user: any }>('/auth/login', { email, password }),
-    register: (data: any) =>
-      apiClient.post<{ access_token: string; user: any }>('/auth/register', data),
-    getProfile: () => apiClient.get<any>('/auth/profile'),
+      apiClient.post<{ access_token: string; user: unknown }>('/auth/login', { email, password }),
+    register: (data: unknown) =>
+      apiClient.post<{ access_token: string; user: unknown }>('/auth/register', data),
+    getProfile: () => apiClient.get<unknown>('/auth/profile'),
   },
 
   // Users
   users: {
-    getAll: () => apiClient.get<any[]>('/users'),
-    getById: (id: string) => apiClient.get<any>(`/users/${id}`),
-    getMe: () => apiClient.get<any>('/users/me'),
-    update: (id: string, data: any) => apiClient.patch(`/users/${id}`, data),
+    getAll: () => apiClient.get<unknown[]>('/users'),
+    getById: (id: string) => apiClient.get<unknown>(`/users/${id}`),
+    getMe: () => apiClient.get<unknown>('/users/me'),
+    update: (id: string, data: unknown) => apiClient.patch(`/users/${id}`, data),
     delete: (id: string) => apiClient.delete(`/users/${id}`),
   },
 }
