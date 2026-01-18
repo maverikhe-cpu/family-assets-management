@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Asset, AssetCategory, AssetChange, AssetStatistics, AssetDistribution, AssetChangeStatistics, AssetChangeType } from '@/types'
-import * as db from '@/db'
+import { api } from '@/api/client'
 import { convertCurrency } from '@/utils/currency'
 import dayjs from 'dayjs'
 
@@ -114,50 +114,68 @@ export const useAssetStore = defineStore('assets', () => {
   async function loadAssets() {
     loading.value = true
     try {
-      assets.value = await db.db.assets.toArray()
+      assets.value = await api.assets.getAll()
+    } catch (error) {
+      console.error('Failed to load assets:', error)
+      throw error
     } finally {
       loading.value = false
     }
   }
 
   async function loadCategories() {
-    categories.value = await db.db.assetCategories.toArray()
+    try {
+      categories.value = await api.assets.getCategories()
+    } catch (error) {
+      console.error('Failed to load categories:', error)
+      throw error
+    }
   }
 
   async function loadChanges(assetId?: string) {
-    if (assetId) {
-      changes.value = await db.db.assetChanges.where('assetId').equals(assetId).toArray()
-    } else {
-      changes.value = await db.db.assetChanges.toArray()
+    loading.value = true
+    try {
+      if (assetId) {
+        changes.value = await api.assets.getChanges(assetId)
+      } else {
+        // 如果没有指定资产ID，加载所有资产的变更记录
+        const allChanges: AssetChange[] = []
+        for (const asset of assets.value) {
+          const assetChanges = await api.assets.getChanges(asset.id)
+          allChanges.push(...assetChanges)
+        }
+        changes.value = allChanges
+      }
+    } catch (error) {
+      console.error('Failed to load changes:', error)
+      throw error
+    } finally {
+      loading.value = false
     }
   }
 
   async function addAsset(asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>) {
-    const now = new Date().toISOString()
-    const newAsset: Asset = {
-      ...asset,
-      id: `asset_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      createdAt: now,
-      updatedAt: now
-    }
-    await db.db.assets.add(newAsset)
-    await loadAssets()
-    return newAsset
+    const response = await api.assets.create(asset)
+    assets.value.push(response as Asset)
+    return response as Asset
   }
 
   async function updateAsset(id: string, updates: Partial<Asset>) {
-    await db.db.assets.update(id, {
-      ...updates,
-      updatedAt: new Date().toISOString()
-    })
-    await loadAssets()
+    const response = await api.assets.update(id, updates)
+    // 更新本地状态
+    const index = assets.value.findIndex(a => a.id === id)
+    if (index !== -1) {
+      assets.value[index] = response as Asset
+    }
+    return response as Asset
   }
 
   async function deleteAsset(id: string) {
-    await db.db.assets.delete(id)
-    await loadAssets()
+    await api.assets.delete(id)
+    assets.value = assets.value.filter(a => a.id !== id)
   }
 
+  // 资产变更记录暂时存储在前端，后续可以迁移到后端
   async function addAssetChange(change: Omit<AssetChange, 'id' | 'createdAt'>) {
     const now = new Date().toISOString()
     const newChange: AssetChange = {
@@ -165,7 +183,7 @@ export const useAssetStore = defineStore('assets', () => {
       id: `change_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       createdAt: now
     }
-    await db.db.assetChanges.add(newChange)
+    changes.value.push(newChange)
     return newChange
   }
 
@@ -194,7 +212,7 @@ export const useAssetStore = defineStore('assets', () => {
       profitLossRate = beforeValue > 0 ? (profitLoss / beforeValue) * 100 : 0
     }
 
-    const change = await addAssetChange({
+    await addAssetChange({
       assetId,
       type,
       amount,
@@ -206,10 +224,7 @@ export const useAssetStore = defineStore('assets', () => {
       notes
     })
 
-    // 更新资产当前价值
     await updateAsset(assetId, { currentValue: newValue })
-
-    return change
   }
 
   /**
@@ -376,7 +391,7 @@ export const useAssetStore = defineStore('assets', () => {
   async function getChangeStatistics(assetId: string): Promise<AssetChangeStatistics> {
     await loadChanges(assetId)
 
-    const assetChanges = changes.value
+    const assetChanges = changes.value.filter(c => c.assetId === assetId)
     const totalChanges = assetChanges.length
 
     // 计算总盈亏
