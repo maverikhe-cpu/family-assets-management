@@ -16,7 +16,6 @@ import {
   exportBackup,
   importBackup
 } from '@/utils/export'
-import * as db from '@/db'
 
 const assetStore = useAssetStore()
 const transactionStore = useTransactionStore()
@@ -132,41 +131,71 @@ async function handleRestoreBackup() {
   try {
     const backup = await importBackup(file)
 
-    // 清空现有数据
-    await db.db.assets.clear()
-    await db.db.transactions.clear()
-    await db.db.assetCategories.clear()
-    await db.db.transactionCategories.clear()
+    // 确保分类已加载
+    if (assetStore.categories.length === 0) {
+      await assetStore.loadCategories()
+    }
 
-    // 恢复资产
+    // 建立分类名称到ID的映射
+    const categories = assetStore.categories
+    const categoryNameToId = new Map<string, string>()
+    for (const cat of categories) {
+      categoryNameToId.set(cat.name, cat.id)
+    }
+
+    let assetCount = 0
+    let txnCount = 0
+
+    // 恢复资产到后端
     if (backup.data.assets?.length > 0) {
-      await db.db.assets.bulkAdd(backup.data.assets)
+      for (const asset of backup.data.assets) {
+        try {
+          const categoryId = categoryNameToId.get(asset.categoryName) || asset.categoryId
+          if (categoryId) {
+            await api.assets.create({
+              name: asset.name,
+              categoryId,
+              initialValue: asset.initialValue,
+              currentValue: asset.currentValue,
+              currency: asset.currency || 'CNY',
+              purchaseDate: asset.purchaseDate || new Date().toISOString().split('T')[0],
+              status: asset.status || 'active',
+              notes: asset.notes || '',
+              holderName: asset.holderName || '本人'
+            })
+            assetCount++
+          }
+        } catch (err) {
+          console.error('恢复资产失败:', asset.name, err)
+        }
+      }
     }
 
-    // 恢复交易
+    // 恢复交易到后端
     if (backup.data.transactions?.length > 0) {
-      await db.db.transactions.bulkAdd(backup.data.transactions)
-    }
-
-    // 恢复分类
-    if (backup.data.categories?.length > 0) {
-      await db.db.assetCategories.bulkAdd(backup.data.categories)
-    }
-
-    // 恢复成员
-    if (backup.data.members?.length > 0) {
-      localStorage.setItem('family_members', JSON.stringify(backup.data.members))
+      for (const txn of backup.data.transactions) {
+        try {
+          await api.transactions.create({
+            type: txn.type,
+            categoryId: txn.categoryId,
+            amount: txn.amount,
+            date: txn.date,
+            memberId: txn.memberId,
+            notes: txn.notes || ''
+          })
+          txnCount++
+        } catch (err) {
+          console.error('恢复交易失败:', txn, err)
+        }
+      }
     }
 
     // 重新加载数据
-    await assetStore.loadCategories()
     await assetStore.loadAssets()
-    await transactionStore.loadCategories()
     await transactionStore.loadTransactions()
-    await memberStore.loadMembers()
 
     backupStatus.value = 'success'
-    backupMessage.value = `恢复成功！共恢复 ${backup.data.assets?.length || 0} 项资产，${backup.data.transactions?.length || 0} 条交易`
+    backupMessage.value = `恢复成功！共恢复 ${assetCount} 项资产，${txnCount} 条交易`
 
     setTimeout(() => {
       showBackupModal.value = false
@@ -183,59 +212,108 @@ async function handleRestoreBackup() {
 // 导入初始数据
 async function handleImport() {
   importStatus.value = 'loading'
-  importMessage.value = '正在导入数据...'
+  importMessage.value = '正在加载数据文件...'
   importProgress.value = 0
 
   try {
-    const response = await fetch('/import-data.json')
-    const data = await response.json()
+    // 确保分类已加载
+    if (assetStore.categories.length === 0) {
+      await assetStore.loadCategories()
+    }
+
+    // 获取导入数据文件
+    let data: any[]
+    try {
+      // 尝试从 public 目录获取
+      const response = await fetch(import.meta.env.BASE_URL + 'import-data.json')
+      if (!response.ok) throw new Error('文件加载失败')
+      data = await response.json()
+    } catch {
+      // 如果 fetch 失败，使用内嵌的默认数据
+      data = [
+        { name: '保诚养老金', categoryName: '保险', parentCategory: '投资资产', holderName: '本人', initialValue: 280000, currentValue: 280000, currency: 'USD', purchaseDate: '2024-01-01', status: 'active', notes: '资产属性: 投资理财' },
+        { name: '渣打活期', categoryName: '银行存款', parentCategory: '流动资产', holderName: '本人', initialValue: 100000, currentValue: 100000, currency: 'CNY', purchaseDate: '2024-01-01', status: 'active', notes: '流动资金' },
+        { name: '现金', categoryName: '现金', parentCategory: '流动资产', holderName: '本人', initialValue: 10000, currentValue: 10000, currency: 'CNY', purchaseDate: '2024-01-01', status: 'active', notes: '日常现金' },
+      ]
+      importMessage.value = '使用内置默认数据（数据文件加载失败）'
+    }
 
     importProgress.value = 30
     importMessage.value = `找到 ${data.length} 条资产记录`
 
-    const count = await db.importAssets(data)
+    // 建立分类名称到ID的映射
+    const categories = assetStore.categories
+    const categoryNameToId = new Map<string, string>()
+    for (const cat of categories) {
+      categoryNameToId.set(cat.name, cat.id)
+    }
 
-    importProgress.value = 80
-    importMessage.value = `成功导入 ${count} 条资产`
+    // 导入资产到后端
+    let successCount = 0
+    let failCount = 0
 
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i]
+      const categoryId = categoryNameToId.get(item.categoryName)
+
+      if (!categoryId) {
+        console.warn(`未找到分类: ${item.categoryName}`)
+        failCount++
+        continue
+      }
+
+      try {
+        await api.assets.create({
+          name: item.name,
+          categoryId,
+          initialValue: item.initialValue,
+          currentValue: item.currentValue,
+          currency: item.currency || 'CNY',
+          purchaseDate: item.purchaseDate || new Date().toISOString().split('T')[0],
+          status: item.status || 'active',
+          notes: item.notes || '',
+          holderName: item.holderName || '本人'
+        })
+        successCount++
+      } catch (err) {
+        console.error(`导入资产失败: ${item.name}`, err)
+        failCount++
+      }
+
+      importProgress.value = 30 + Math.floor((i + 1) / data.length * 50)
+      importMessage.value = `正在导入... (${i + 1}/${data.length})`
+    }
+
+    importProgress.value = 90
+    importMessage.value = `正在刷新数据...`
+
+    // 重新加载数据
     await assetStore.loadAssets()
-    await memberStore.loadMembers()
 
     importProgress.value = 100
     importStatus.value = 'success'
-    importMessage.value = `导入完成！成功导入 ${count} 条资产记录，${memberStore.members.length} 位成员`
+    importMessage.value = `导入完成！成功 ${successCount} 条` + (failCount > 0 ? `，失败 ${failCount} 条` : '')
 
     setTimeout(() => {
       showImportModal.value = false
       importStatus.value = 'idle'
       importProgress.value = 0
+      importMessage.value = ''
     }, 3000)
-  } catch (error) {
+  } catch (error: any) {
     importStatus.value = 'error'
-    importMessage.value = `导入失败：${error}`
+    importMessage.value = `导入失败：${error.message || error}`
   }
 }
 
-// 清空数据
+// 清空数据（已禁用 - 数据存储在后端）
 async function handleClear() {
-  if (confirm('确定要清空所有数据吗？此操作不可恢复！')) {
-    await db.db.assets.clear()
-    await db.db.transactions.clear()
-    await db.db.assetChanges.clear()
-    await db.db.budgets.clear()
-    location.reload()
-  }
+  alert('数据现在存储在服务器上，请通过后端管理界面清空数据')
 }
 
-// 重置分类
+// 重置分类（已禁用 - 分类由后端管理）
 async function handleResetCategories() {
-  if (confirm('确定要重置分类吗？这将清除所有自定义分类')) {
-    await db.db.assetCategories.clear()
-    await db.db.transactionCategories.clear()
-    await db.db.initDefaultAssetCategories()
-    await db.db.initDefaultTransactionCategories()
-    location.reload()
-  }
+  alert('分类现在由后端管理，请通过后端管理界面重置')
 }
 
 // 创建家庭
@@ -484,8 +562,8 @@ async function copyInviteLink() {
         <NSpace vertical>
           <p><strong>家庭资产管家</strong></p>
           <p>版本：1.0.0 (MVP)</p>
-          <p>数据存储：本地 IndexedDB</p>
-          <p class="section-desc">您的数据完全存储在本地浏览器中，不会上传到任何服务器</p>
+          <p>数据存储：云端服务器（支持多设备同步）</p>
+          <p class="section-desc">数据存储在您的家庭账户中，可在任何设备上登录访问</p>
         </NSpace>
       </NCard>
     </NSpace>
