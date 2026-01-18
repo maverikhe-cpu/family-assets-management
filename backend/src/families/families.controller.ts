@@ -180,4 +180,16 @@ export class FamiliesController {
       familyId: user.familyId,
     };
   }
+
+  /**
+   * 重新生成邀请码
+   * POST /families/:id/regenerate-invite-code
+   */
+  @Post(':id/regenerate-invite-code')
+  async regenerateInviteCode(@Param('id') id: string, @Request() req: RequestWithUser) {
+    const inviteCode = await this.familiesService.regenerateInviteCode(id, req.user.userId);
+    return {
+      inviteCode,
+    };
+  }
 }

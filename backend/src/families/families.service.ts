@@ -410,4 +410,42 @@ export class FamiliesService {
 
     return membership?.role || null;
   }
+
+  /**
+   * 重新生成邀请码
+   */
+  async regenerateInviteCode(
+    familyId: string,
+    userId: string,
+  ): Promise<string> {
+    const family = await this.familiesRepository.findOne({
+      where: { id: familyId },
+    });
+
+    if (!family) {
+      throw new NotFoundException('家庭不存在');
+    }
+
+    // 只有所有者和管理员可以重新生成邀请码
+    const membership = await this.familyMembersRepository.findOne({
+      where: { familyId, userId },
+    });
+
+    if (!membership) {
+      throw new ForbiddenException('您不是该家庭成员');
+    }
+
+    if (
+      membership.role !== FamilyMemberRole.OWNER &&
+      membership.role !== FamilyMemberRole.ADMIN
+    ) {
+      throw new ForbiddenException('只有所有者和管理员可以重新生成邀请码');
+    }
+
+    // 生成新的邀请码
+    family.inviteCode = this.generateInviteCode();
+    await this.familiesRepository.save(family);
+
+    return family.inviteCode;
+  }
 }

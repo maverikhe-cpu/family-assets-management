@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { NCard, NSpace, NButton, NModal, NAlert, NSpin, NProgress, NUpload, type UploadFileInfo } from 'naive-ui'
+import { ref, computed, onMounted } from 'vue'
+import { NCard, NSpace, NButton, NModal, NAlert, NSpin, NProgress, NUpload, NInput, NTag, type UploadFileInfo } from 'naive-ui'
 import { useAssetStore } from '@/stores/assets'
 import { useTransactionStore } from '@/stores/transactions'
 import { useMemberStore } from '@/stores/members'
+import { useAuthStore } from '@/stores/auth'
+import { useFamilyStore } from '@/stores/families'
+import { usePermission } from '@/composables/usePermission'
+import { api } from '@/api/client'
+import RoleBadge from '@/components/RoleBadge.vue'
 import {
   exportAssetsToExcel,
   exportTransactionsToExcel,
@@ -16,9 +21,14 @@ import * as db from '@/db'
 const assetStore = useAssetStore()
 const transactionStore = useTransactionStore()
 const memberStore = useMemberStore()
+const authStore = useAuthStore()
+const familyStore = useFamilyStore()
+const { isAdmin } = usePermission()
 
 const showImportModal = ref(false)
 const showBackupModal = ref(false)
+const showInviteModal = ref(false)
+const showCreateFamilyModal = ref(false)
 const importStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const importMessage = ref('')
 const importProgress = ref(0)
@@ -27,6 +37,33 @@ const importProgress = ref(0)
 const fileList = ref<UploadFileInfo[]>([])
 const backupStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
 const backupMessage = ref('')
+
+// 家庭设置
+const newFamilyName = ref('')
+const newFamilyDescription = ref('')
+const createFamilyStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
+const createFamilyMessage = ref('')
+
+// 邀请码
+const inviteCodeToJoin = ref('')
+const joinFamilyStatus = ref<'idle' | 'loading' | 'success' | 'error'>('idle')
+const joinFamilyMessage = ref('')
+
+// 计算属性
+const currentInviteCode = computed(() => familyStore.currentFamily?.inviteCode || '')
+const familyMemberCount = computed(() => familyStore.currentFamily?.members?.length || 0)
+
+// 加载家庭数据
+onMounted(async () => {
+  try {
+    await familyStore.fetchFamilies()
+    if (authStore.user?.familyId) {
+      await familyStore.fetchFamily(authStore.user.familyId)
+    }
+  } catch (error) {
+    console.error('Failed to load family data:', error)
+  }
+})
 
 // 导出资产列表
 function handleExportAssets() {
@@ -200,6 +237,115 @@ async function handleResetCategories() {
     location.reload()
   }
 }
+
+// 创建家庭
+async function handleCreateFamily() {
+  if (!newFamilyName.value.trim()) {
+    createFamilyMessage.value = '请输入家庭名称'
+    createFamilyStatus.value = 'error'
+    return
+  }
+
+  createFamilyStatus.value = 'loading'
+  createFamilyMessage.value = '正在创建家庭...'
+
+  try {
+    await familyStore.createFamily({
+      name: newFamilyName.value,
+      description: newFamilyDescription.value
+    })
+
+    createFamilyStatus.value = 'success'
+    createFamilyMessage.value = '家庭创建成功！'
+
+    setTimeout(() => {
+      showCreateFamilyModal.value = false
+      newFamilyName.value = ''
+      newFamilyDescription.value = ''
+      createFamilyStatus.value = 'idle'
+      createFamilyMessage.value = ''
+    }, 2000)
+  } catch (error: any) {
+    createFamilyStatus.value = 'error'
+    createFamilyMessage.value = error.response?.data?.message || '创建失败'
+  }
+}
+
+// 通过邀请码加入家庭
+async function handleJoinFamily() {
+  if (!inviteCodeToJoin.value.trim()) {
+    joinFamilyMessage.value = '请输入邀请码'
+    joinFamilyStatus.value = 'error'
+    return
+  }
+
+  joinFamilyStatus.value = 'loading'
+  joinFamilyMessage.value = '正在加入家庭...'
+
+  try {
+    await familyStore.joinByInviteCode(inviteCodeToJoin.value.trim())
+
+    joinFamilyStatus.value = 'success'
+    joinFamilyMessage.value = '成功加入家庭！'
+
+    setTimeout(() => {
+      showInviteModal.value = false
+      inviteCodeToJoin.value = ''
+      joinFamilyStatus.value = 'idle'
+      joinFamilyMessage.value = ''
+      location.reload()
+    }, 2000)
+  } catch (error: any) {
+    joinFamilyStatus.value = 'error'
+    joinFamilyMessage.value = error.response?.data?.message || '加入失败'
+  }
+}
+
+// 重新生成邀请码
+async function handleRegenerateInviteCode() {
+  if (!familyStore.currentFamily?.id) return
+
+  try {
+    const result = await api.families.regenerateInviteCode(familyStore.currentFamily.id)
+    await familyStore.fetchFamily(familyStore.currentFamily.id)
+    return result.inviteCode
+  } catch (error: any) {
+    console.error('Failed to regenerate invite code:', error)
+    throw error
+  }
+}
+
+// 复制邀请链接
+function getInviteLink() {
+  const code = currentInviteCode.value
+  if (!code) return ''
+  return `${window.location.origin}/join?code=${code}`
+}
+
+// 复制到剪贴板
+async function copyToClipboard(text: string) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch (error) {
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+  }
+}
+
+// 复制邀请码
+async function copyInviteCode() {
+  await copyToClipboard(currentInviteCode.value)
+}
+
+// 复制邀请链接
+async function copyInviteLink() {
+  await copyToClipboard(getInviteLink())
+}
 </script>
 
 <template>
@@ -224,6 +370,67 @@ async function handleResetCategories() {
             </NButton>
             <NButton @click="handleExportAnnualReport">
               📈 导出年度报告
+            </NButton>
+          </NSpace>
+        </NSpace>
+      </NCard>
+
+      <!-- 家庭设置 -->
+      <NCard title="家庭设置" class="setting-card">
+        <NSpace vertical :size="16">
+          <!-- 当前家庭信息 -->
+          <div v-if="familyStore.currentFamily" class="family-info">
+            <div class="family-header">
+              <div>
+                <h4 class="family-name">{{ familyStore.currentFamily.name }}</h4>
+                <p class="family-desc">{{ familyStore.currentFamily.description || '暂无描述' }}</p>
+              </div>
+              <RoleBadge :role="authStore.familyRole || 'viewer'" />
+            </div>
+            <div class="family-stats">
+              <NTag type="info" size="small">
+                👥 {{ familyMemberCount }} 位成员
+              </NTag>
+            </div>
+          </div>
+
+          <!-- 邀请码区域 -->
+          <div v-if="familyStore.currentFamily" class="invite-section">
+            <div class="invite-header">
+              <p class="section-title">家庭邀请码</p>
+              <p class="section-desc">分享邀请码邀请家庭成员</p>
+            </div>
+            <div class="invite-code-container">
+              <span class="invite-code">{{ currentInviteCode }}</span>
+              <NButton size="small" @click="copyInviteCode">
+                📋 复制
+              </NButton>
+              <NButton
+                v-if="isAdmin"
+                size="small"
+                quaternary
+                type="primary"
+                @click="handleRegenerateInviteCode"
+              >
+                🔄 重新生成
+              </NButton>
+            </div>
+            <div class="invite-link">
+              <p class="section-desc">邀请链接：</p>
+              <div class="invite-link-row">
+                <span class="link-text">{{ getInviteLink() }}</span>
+                <NButton size="small" text @click="copyInviteLink">📋</NButton>
+              </div>
+            </div>
+          </div>
+
+          <!-- 操作按钮 -->
+          <NSpace :size="12">
+            <NButton v-if="!familyStore.currentFamily" type="primary" @click="showCreateFamilyModal = true">
+              ➕ 创建家庭
+            </NButton>
+            <NButton v-if="!familyStore.currentFamily" @click="showInviteModal = true">
+              📨 通过邀请码加入
             </NButton>
           </NSpace>
         </NSpace>
@@ -374,6 +581,103 @@ async function handleResetCategories() {
         </NSpace>
       </template>
     </NModal>
+
+    <!-- 创建家庭弹窗 -->
+    <NModal
+      v-model:show="showCreateFamilyModal"
+      preset="card"
+      title="创建新家庭"
+      style="width: 500px"
+    >
+      <NSpace vertical :size="16">
+        <p>创建一个新的家庭，您可以邀请家庭成员加入</p>
+
+        <NInput
+          v-model:value="newFamilyName"
+          placeholder="请输入家庭名称"
+          maxlength="50"
+          show-count
+        />
+
+        <NInput
+          v-model:value="newFamilyDescription"
+          type="textarea"
+          placeholder="家庭描述（可选）"
+          maxlength="200"
+          show-count
+          :rows="3"
+        />
+
+        <NAlert v-if="createFamilyStatus === 'success'" type="success">
+          {{ createFamilyMessage }}
+        </NAlert>
+        <NAlert v-else-if="createFamilyStatus === 'error'" type="error">
+          {{ createFamilyMessage }}
+        </NAlert>
+        <NSpin v-else-if="createFamilyStatus === 'loading'" :show="true">
+          {{ createFamilyMessage }}
+        </NSpin>
+      </NSpace>
+
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showCreateFamilyModal = false" :disabled="createFamilyStatus === 'loading'">
+            取消
+          </NButton>
+          <NButton
+            type="primary"
+            @click="handleCreateFamily"
+            :disabled="createFamilyStatus === 'loading' || !newFamilyName.trim()"
+          >
+            创建
+          </NButton>
+        </NSpace>
+      </template>
+    </NModal>
+
+    <!-- 通过邀请码加入弹窗 -->
+    <NModal
+      v-model:show="showInviteModal"
+      preset="card"
+      title="通过邀请码加入家庭"
+      style="width: 500px"
+    >
+      <NSpace vertical :size="16">
+        <p>输入家庭邀请码以加入该家庭</p>
+
+        <NInput
+          v-model:value="inviteCodeToJoin"
+          placeholder="请输入6位邀请码"
+          maxlength="6"
+          style="text-transform: uppercase"
+        />
+
+        <NAlert v-if="joinFamilyStatus === 'success'" type="success">
+          {{ joinFamilyMessage }}
+        </NAlert>
+        <NAlert v-else-if="joinFamilyStatus === 'error'" type="error">
+          {{ joinFamilyMessage }}
+        </NAlert>
+        <NSpin v-else-if="joinFamilyStatus === 'loading'" :show="true">
+          {{ joinFamilyMessage }}
+        </NSpin>
+      </NSpace>
+
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showInviteModal = false" :disabled="joinFamilyStatus === 'loading'">
+            取消
+          </NButton>
+          <NButton
+            type="primary"
+            @click="handleJoinFamily"
+            :disabled="joinFamilyStatus === 'loading' || !inviteCodeToJoin.trim()"
+          >
+            加入
+          </NButton>
+        </NSpace>
+      </template>
+    </NModal>
   </div>
 </template>
 
@@ -478,5 +782,92 @@ async function handleResetCategories() {
     margin: 0;
     border-radius: 0;
   }
+}
+
+/* 家庭设置样式 */
+.family-info {
+  padding: 12px;
+  background-color: var(--n-color-modal);
+  border-radius: 8px;
+}
+
+.family-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.family-name {
+  margin: 0 0 4px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.family-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--n-text-color-3);
+}
+
+.family-stats {
+  display: flex;
+  gap: 8px;
+}
+
+.invite-section {
+  padding: 12px;
+  background-color: var(--n-color-modal);
+  border-radius: 8px;
+}
+
+.invite-header {
+  margin-bottom: 12px;
+}
+
+.section-title {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.invite-code-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.invite-code {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Droid Sans Mono', 'Source Code Pro', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  flex: 1;
+  padding: 8px 12px;
+  background-color: var(--n-color-target);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.invite-link {
+  margin-top: 8px;
+}
+
+.invite-link .section-desc {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+}
+
+.invite-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.invite-link-row .link-text {
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--n-text-color-2);
 }
 </style>
