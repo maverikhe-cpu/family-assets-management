@@ -78,6 +78,29 @@ export const apiClient = new ApiClient()
 
 // Export API methods for specific resources
 export const api = {
+  // Families
+  families: {
+    getAll: () => apiClient.get<any[]>('/families'),
+    getById: (id: string) => apiClient.get<any>(`/families/${id}`),
+    create: (data: { name: string; description?: string }) =>
+      apiClient.post<any>('/families', data),
+    update: (id: string, data: { name?: string; description?: string }) =>
+      apiClient.put<any>(`/families/${id}`, data),
+    delete: (id: string) => apiClient.delete(`/families/${id}`),
+    addMember: (familyId: string, userId: string, role?: string) =>
+      apiClient.post<any>(`/families/${familyId}/members`, { userId, role }),
+    removeMember: (familyId: string, userId: string) =>
+      apiClient.delete(`/families/${familyId}/members/${userId}`),
+    updateMemberRole: (familyId: string, userId: string, role: string) =>
+      apiClient.put<any>(`/families/${familyId}/members/${userId}/role`, { role }),
+    joinByInviteCode: (inviteCode: string) =>
+      apiClient.post<{ familyId: string; role: string }>(`/families/join/${inviteCode}`),
+    switchFamily: (familyId: string) =>
+      apiClient.post<{ familyId: string }>(`/families/${familyId}/switch`),
+    regenerateInviteCode: (familyId: string) =>
+      apiClient.post<{ inviteCode: string }>(`/families/${familyId}/regenerate-invite-code`),
+  },
+
   // Assets
   assets: {
     getAll: () => apiClient.get<any[]>('/assets'),

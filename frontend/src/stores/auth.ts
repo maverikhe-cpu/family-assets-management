@@ -2,12 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/api/client'
 
+export type FamilyRole = 'owner' | 'admin' | 'member' | 'viewer'
+
 export interface User {
   id: string
-  username: string
   name: string
   role: string
-  email?: string
+  email: string
+  familyId?: string | null
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -15,6 +17,11 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(
     localStorage.getItem('auth_user')
       ? JSON.parse(localStorage.getItem('auth_user')!)
+      : null
+  )
+  const familyRole = ref<FamilyRole | null>(
+    localStorage.getItem('family_role')
+      ? (localStorage.getItem('family_role')! as FamilyRole)
       : null
   )
   const loading = ref(false)
@@ -29,11 +36,22 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('auth_user', JSON.stringify(newUser))
   }
 
+  function setFamilyRole(role: FamilyRole | null) {
+    familyRole.value = role
+    if (role) {
+      localStorage.setItem('family_role', role)
+    } else {
+      localStorage.removeItem('family_role')
+    }
+  }
+
   function clearAuth() {
     token.value = null
     user.value = null
+    familyRole.value = null
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
+    localStorage.removeItem('family_role')
   }
 
   async function login(email: string, password: string) {
@@ -42,6 +60,8 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.auth.login(email, password)
       setToken(response.access_token)
       setUser(response.user)
+      // Family role is stored in the JWT and handled by the backend
+      // We'll fetch it separately if needed
       return response
     } catch (error) {
       console.error('Login failed:', error)
@@ -54,11 +74,30 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(data: any) {
     loading.value = true
     try {
-      await api.auth.register(data)
-      // After registration, automatically login
-      return await login(data.email, data.password)
+      const response = await api.auth.register(data)
+      setToken(response.access_token)
+      setUser(response.user)
+      return response
     } catch (error) {
       console.error('Registration failed:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function switchFamily(familyId: string) {
+    loading.value = true
+    try {
+      const response = await api.families.switchFamily(familyId)
+      // Update user's current family
+      if (user.value) {
+        user.value.familyId = response.familyId
+        localStorage.setItem('auth_user', JSON.stringify(user.value))
+      }
+      return response
+    } catch (error) {
+      console.error('Switch family failed:', error)
       throw error
     } finally {
       loading.value = false
@@ -73,16 +112,41 @@ export const useAuthStore = defineStore('auth', () => {
     return !!token.value
   }
 
+  function hasFamily() {
+    return !!user.value?.familyId
+  }
+
+  function canEdit(): boolean {
+    if (!familyRole.value) return false
+    return familyRole.value !== 'viewer'
+  }
+
+  function isAdmin(): boolean {
+    if (!familyRole.value) return false
+    return familyRole.value === 'owner' || familyRole.value === 'admin'
+  }
+
+  function isOwner(): boolean {
+    return familyRole.value === 'owner'
+  }
+
   return {
     token,
     user,
+    familyRole,
     loading,
     setToken,
     setUser,
+    setFamilyRole,
     clearAuth,
     login,
     register,
+    switchFamily,
     logout,
     isAuthenticated,
+    hasFamily,
+    canEdit,
+    isAdmin,
+    isOwner,
   }
 })

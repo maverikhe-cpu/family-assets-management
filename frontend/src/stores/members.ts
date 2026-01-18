@@ -1,6 +1,18 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Member } from '@/types'
+import { useFamilyStore } from './families'
+
+export interface Member {
+  id: string
+  name: string
+  role: string
+  color: string
+  order: number
+  avatar?: string
+  userId?: string
+  createdAt: string
+  updatedAt: string
+}
 
 export const useMemberStore = defineStore('members', () => {
   const members = ref<Member[]>([])
@@ -13,17 +25,43 @@ export const useMemberStore = defineStore('members', () => {
   async function loadMembers() {
     loading.value = true
     try {
-      // 从 localStorage 读取成员数据
-      const stored = localStorage.getItem('family_members')
-      if (stored) {
-        members.value = JSON.parse(stored)
+      const familyStore = useFamilyStore()
+
+      // If we have family members from the backend, use them
+      if (familyStore.currentFamily?.members) {
+        members.value = familyStore.currentFamily.members.map((fm, index) => ({
+          id: fm.userId,
+          name: fm.user?.name || 'Unknown',
+          role: fm.role,
+          color: getMemberColor(fm.role, index),
+          order: index + 1,
+          userId: fm.userId,
+          createdAt: fm.createdAt.toString(),
+          updatedAt: fm.updatedAt.toString(),
+        }))
       } else {
-        // 初始化默认成员
-        await initDefaultMembers()
+        // Fallback to localStorage for backwards compatibility
+        const stored = localStorage.getItem('family_members')
+        if (stored) {
+          members.value = JSON.parse(stored)
+        } else {
+          // Initialize default members
+          await initDefaultMembers()
+        }
       }
     } finally {
       loading.value = false
     }
+  }
+
+  function getMemberColor(role: string, index: number): string {
+    const colors: Record<string, string> = {
+      owner: '#3B82F6',
+      admin: '#8B5CF6',
+      member: '#10B981',
+      viewer: '#9CA3AF',
+    }
+    return colors[role] || `hsl(${(index * 60) % 360}, 70%, 50%)`
   }
 
   async function initDefaultMembers() {
@@ -34,33 +72,6 @@ export const useMemberStore = defineStore('members', () => {
         role: 'owner',
         color: '#3B82F6',
         order: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'member_spouse',
-        name: '配偶',
-        role: 'spouse',
-        color: '#EC4899',
-        order: 2,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'member_child',
-        name: '子女',
-        role: 'child',
-        color: '#10B981',
-        order: 3,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'member_shared',
-        name: '共有',
-        role: 'other',
-        color: '#8B5CF6',
-        order: 4,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       }
@@ -93,6 +104,7 @@ export const useMemberStore = defineStore('members', () => {
         color: updates.color ?? current.color,
         order: updates.order ?? current.order,
         avatar: updates.avatar ?? current.avatar,
+        userId: updates.userId ?? current.userId,
         createdAt: current.createdAt,
         updatedAt: new Date().toISOString()
       }
@@ -118,6 +130,11 @@ export const useMemberStore = defineStore('members', () => {
     return member?.name || '未知'
   }
 
+  function getMemberColorById(id: string): string {
+    const member = getMemberById(id)
+    return member?.color || '#9CA3AF'
+  }
+
   return {
     // 状态
     members,
@@ -130,6 +147,7 @@ export const useMemberStore = defineStore('members', () => {
     updateMember,
     deleteMember,
     getMemberById,
-    getMemberName
+    getMemberName,
+    getMemberColorById
   }
 })
