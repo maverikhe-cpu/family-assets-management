@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: family-assets-api
+    runtime: node
+    buildCommand: npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        value: https://family-assets-management.vercel.app
+      - key: JWT_SECRET
+        generateValue: true
+    databases:
+      - name: family-assets-db
+        databaseName: family_assets
+        user: family_assets_user
+
+databases:
+  - name: family-assets-db
+    databaseName: family_assets
+    user: family_assets_user
