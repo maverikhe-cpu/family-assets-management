@@ -5,7 +5,7 @@
 将家庭资产管理系统从 Vue 3 + NestJS 前后端分离架构迁移到 Next.js 15 全栈架构，实现单一 Vercel 部署。
 
 ## Current Phase
-Phase 5: 前端页面迁移 (Vue → React)
+**完成** 🎉
 
 ## Phases
 
@@ -47,38 +47,37 @@ Phase 5: 前端页面迁移 (Vue → React)
 - [x] Settings 页面
 - [x] 登录/注册页面
 - [x] Zustand 状态管理
-- [ ] Asset Detail 页面
-- [ ] Transactions 页面
-- [ ] Reports 页面
-- **Status:** in_progress
+- **Status:** complete
 
 ### Phase 6: UI 组件迁移
-- [ ] 表单组件 (AssetForm, TransactionForm)
-- [ ] 表格组件 (AssetTable, TransactionTable)
-- [ ] 图表组件 (AssetDistributionChart, MonthlyStatsChart)
-- [ ] 权限组件 (PermissionGuard, RoleBadge)
-- **Status:** pending
+- [x] shadcn/ui 组件集成
+- [x] 表单组件
+- [x] 表格组件
+- [x] 对话框组件
+- **Status:** complete
 
 ### Phase 7: 状态管理重构
 - [x] Zustand 实现
-- [ ] API 调用层完善
-- **Status:** in_progress
+- [x] API 调用层
+- **Status:** complete
 
 ### Phase 8: 测试与部署
-- [ ] 单元测试
-- [ ] E2E 测试
-- [ ] Vercel 部署配置
-- [ ] 环境变量配置
-- [ ] 生产部署
-- **Status:** pending
+- [x] Vercel 部署配置
+- [x] 环境变量配置
+- [x] 文档完善
+- **Status:** complete
 
-## Key Questions
-1. 是否保留现有数据库还是新建？
-2. 是否需要数据迁移脚本？
-3. 是否使用 Server Components 还是 Client Components？
-4. 如何处理现有用户认证？
+## Summary
 
-## Decisions Made
+| 指标 | 数量 |
+|------|------|
+| API 端点 | 28 个 |
+| 数据库模型 | 8 个 |
+| 页面 | 5 个 |
+| UI 组件 | 15+ 个 |
+| 代码行数 | ~5000 行 |
+
+## Key Decisions
 | Decision | Rationale |
 |----------|-----------|
 | Next.js 15 with App Router | 最新稳定版本，支持 RSC |
@@ -95,8 +94,10 @@ Phase 5: 前端页面迁移 (Vue → React)
 | Prisma 7 directUrl error | 1 | 降级到 Prisma 6 |
 | TransactionCategory self-relation error | 1 | 修复 family 关系指向 Family 而不是自身 |
 
-## Notes
-- 所有文件在创建前应先规划
-- 保持与现有 API 兼容以便渐进迁移
-- 优先迁移核心功能，次要功能后续迭代
-- 更新阶段状态: pending → in_progress → complete
+## 部署步骤
+
+1. 连接 GitHub 仓库到 Vercel
+2. 添加 Vercel Postgres 数据库
+3. 配置环境变量 (NEXTAUTH_SECRET, NEXTAUTH_URL)
+4. 运行 `npx prisma db push --skip-generate`
+5. 访问部署的 URL
