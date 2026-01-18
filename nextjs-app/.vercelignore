@@ -1,0 +1,11 @@
+# Prisma
+prisma/migrations
+
+# Development
+.env.local
+.vscode
+
+# Testing
+coverage
+*.test.ts
+*.spec.ts
