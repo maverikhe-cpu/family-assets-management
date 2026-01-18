@@ -107,10 +107,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 导入 Prisma SDK 用于运行 db push
-    const { PrismaClient } = await import("@prisma/client")
-    const { ensureDatabaseExists } = await import("@prisma/adapter-utils")
-
     // 运行 prisma db push
     // 注意：这里我们使用 schema 路径来推送
     const { exec } = require("child_process")

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { nanoid } from "nanoid"
 import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
@@ -11,17 +10,18 @@ import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id } = await params
+    const session = await auth()
 
     if (!session?.user?.id) {
       return apiError("未授权", 401)
     }
 
     // 验证权限
-    const access = await validateFamilyAccess(session.user.id, params.id)
+    const access = await validateFamilyAccess(session.user.id, id)
 
     if (!access.canManage) {
       return apiError("无权限重新生成邀请码", 403)
@@ -30,7 +30,7 @@ export async function POST(
     const newInviteCode = nanoid(8).toUpperCase()
 
     const family = await prisma.family.update({
-      where: { id: params.id },
+      where: { id },
       data: { inviteCode: newInviteCode },
       select: { inviteCode: true },
     })

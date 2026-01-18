@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
 
@@ -10,20 +9,21 @@ import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string; userId: string } }
+  { params }: { params: Promise<{ id: string; userId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id, userId } = await params
+    const session = await auth()
 
     if (!session?.user?.id) {
       return apiError("未授权", 401)
     }
 
     // 验证权限
-    const access = await validateFamilyAccess(session.user.id, params.id)
+    const access = await validateFamilyAccess(session.user.id, id)
 
     // 不能移除自己
-    if (params.userId === session.user.id) {
+    if (userId === session.user.id) {
       return apiError("不能移除自己，请使用退出家庭功能")
     }
 
@@ -36,8 +36,8 @@ export async function DELETE(
     const targetMember = await prisma.familyMember.findUnique({
       where: {
         familyId_userId: {
-          familyId: params.id,
-          userId: params.userId,
+          familyId: id,
+          userId: userId,
         },
       },
     })
@@ -59,8 +59,8 @@ export async function DELETE(
     await prisma.familyMember.delete({
       where: {
         familyId_userId: {
-          familyId: params.id,
-          userId: params.userId,
+          familyId: id,
+          userId: userId,
         },
       },
     })
@@ -78,10 +78,11 @@ export async function DELETE(
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string; userId: string } }
+  { params }: { params: Promise<{ id: string; userId: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id, userId } = await params
+    const session = await auth()
 
     if (!session?.user?.id) {
       return apiError("未授权", 401)
@@ -95,7 +96,7 @@ export async function PUT(
     }
 
     // 验证权限
-    const access = await validateFamilyAccess(session.user.id, params.id)
+    const access = await validateFamilyAccess(session.user.id, id)
 
     // 只有 owner 可以修改角色
     if (!access.isOwner) {
@@ -103,7 +104,7 @@ export async function PUT(
     }
 
     // 不能修改自己的角色
-    if (params.userId === session.user.id) {
+    if (userId === session.user.id) {
       return apiError("不能修改自己的角色")
     }
 
@@ -111,8 +112,8 @@ export async function PUT(
     const targetMember = await prisma.familyMember.findUnique({
       where: {
         familyId_userId: {
-          familyId: params.id,
-          userId: params.userId,
+          familyId: id,
+          userId: userId,
         },
       },
     })
@@ -134,8 +135,8 @@ export async function PUT(
     await prisma.familyMember.update({
       where: {
         familyId_userId: {
-          familyId: params.id,
-          userId: params.userId,
+          familyId: id,
+          userId: userId,
         },
       },
       data: { role },

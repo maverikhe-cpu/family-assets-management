@@ -10,7 +10,7 @@ export interface User {
   name: string
   role: string
   familyId: string | null
-  familyRole: FamilyRole | null
+  familyRole: string | null
 }
 
 export interface Family {
@@ -190,13 +190,13 @@ export const useStore = create<AppStore>()(
       assets: [],
       setAssets: (assets) => set({ assets }),
       assetCategories: [],
-      setAssetCategories: (categories) => set({ assetCategories }),
+      setAssetCategories: (categories) => set({ assetCategories: categories }),
 
       // Transactions
       transactions: [],
       setTransactions: (transactions) => set({ transactions }),
       transactionCategories: [],
-      setTransactionCategories: (categories) => set({ transactionCategories }),
+      setTransactionCategories: (categories) => set({ transactionCategories: categories }),
 
       // UI State
       sidebarOpen: true,
@@ -222,7 +222,7 @@ export const useStore = create<AppStore>()(
 
           set({ families: data.families, dbInitNeeded: false })
           if (data.families.length > 0 && !get().currentFamily) {
-            const current = data.families.find((f) => f.id === get().user?.familyId) || data.families[0]
+            const current = data.families.find((f: Family) => f.id === get().user?.familyId) || data.families[0]
             set({ currentFamily: current })
           }
         } catch (error) {

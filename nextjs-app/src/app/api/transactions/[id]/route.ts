@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
 
@@ -10,17 +9,18 @@ import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id } = await params
+    const session = await auth()
 
     if (!session?.user?.id || !session.user.familyId) {
       return apiError("未授权", 401)
     }
 
     const transaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         category: true,
         member: {
@@ -53,10 +53,11 @@ export async function GET(
  */
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id } = await params
+    const session = await auth()
 
     if (!session?.user?.id || !session.user.familyId) {
       return apiError("未授权", 401)
@@ -77,7 +78,7 @@ export async function PATCH(
 
     // 检查交易是否存在
     const transaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!transaction) {
@@ -103,7 +104,7 @@ export async function PATCH(
     }
 
     const updatedTransaction = await prisma.transaction.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(type && { type }),
         ...(amount !== undefined && { amount }),
@@ -140,10 +141,11 @@ export async function PATCH(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id } = await params
+    const session = await auth()
 
     if (!session?.user?.id || !session.user.familyId) {
       return apiError("未授权", 401)
@@ -151,7 +153,7 @@ export async function DELETE(
 
     // 检查交易是否存在
     const transaction = await prisma.transaction.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!transaction) {
@@ -166,7 +168,7 @@ export async function DELETE(
     }
 
     await prisma.transaction.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return apiSuccess({ message: "删除成功" })

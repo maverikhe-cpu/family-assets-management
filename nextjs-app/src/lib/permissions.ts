@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "./auth"
+import { auth } from "@/auth"
 import { prisma } from "./prisma"
 
 export type FamilyRole = "owner" | "admin" | "member" | "viewer"
@@ -8,7 +7,7 @@ export type FamilyRole = "owner" | "admin" | "member" | "viewer"
  * 从请求中获取当前会话
  */
 export async function getCurrentUser() {
-  const session = await getServerSession(authOptions)
+  const session = await auth()
   return session?.user
 }
 

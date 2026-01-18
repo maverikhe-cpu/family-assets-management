@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
 import { nanoid } from "nanoid"
@@ -11,7 +10,7 @@ import { nanoid } from "nanoid"
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth()
 
     if (!session?.user?.id || !session.user.familyId) {
       return apiError("未授权", 401)
@@ -74,7 +73,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await auth()
 
     if (!session?.user?.id || !session.user.familyId) {
       return apiError("未授权", 401)

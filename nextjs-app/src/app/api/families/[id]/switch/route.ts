@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
 
@@ -10,26 +9,27 @@ import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id } = await params
+    const session = await auth()
 
     if (!session?.user?.id) {
       return apiError("未授权", 401)
     }
 
     // 验证是否是成员
-    const access = await validateFamilyAccess(session.user.id, params.id)
+    const access = await validateFamilyAccess(session.user.id, id)
 
     // 更新用户的当前家庭
     await prisma.user.update({
       where: { id: session.user.id },
-      data: { familyId: params.id },
+      data: { familyId: id },
     })
 
     return apiSuccess({
-      familyId: params.id,
+      familyId: id,
       familyRole: access.member.role,
       message: "切换成功",
     })

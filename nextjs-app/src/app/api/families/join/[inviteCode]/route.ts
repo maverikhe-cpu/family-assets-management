@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { apiError, apiSuccess } from "@/lib/permissions"
 
@@ -10,10 +9,11 @@ import { apiError, apiSuccess } from "@/lib/permissions"
  */
 export async function POST(
   req: NextRequest,
-  { params }: { params: { inviteCode: string } }
+  { params }: { params: Promise<{ inviteCode: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { inviteCode } = await params
+    const session = await auth()
 
     if (!session?.user?.id) {
       return apiError("未授权", 401)
@@ -21,7 +21,7 @@ export async function POST(
 
     // 查找家庭
     const family = await prisma.family.findUnique({
-      where: { inviteCode: params.inviteCode },
+      where: { inviteCode },
     })
 
     if (!family) {

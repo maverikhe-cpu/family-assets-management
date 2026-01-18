@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
+import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
 
@@ -10,17 +9,18 @@ import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id } = await params
+    const session = await auth()
 
     if (!session?.user?.id) {
       return apiError("未授权", 401)
     }
 
     const family = await prisma.family.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         members: {
           include: {
@@ -42,11 +42,11 @@ export async function GET(
     }
 
     // 验证访问权限
-    const member = await validateFamilyAccess(session.user.id, family.id)
+    const access = await validateFamilyAccess(session.user.id, family.id)
 
     return apiSuccess({
       ...family,
-      currentRole: member.role,
+      currentRole: access.member.role,
     })
   } catch (error) {
     console.error("Get family error:", error)
@@ -60,10 +60,11 @@ export async function GET(
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id } = await params
+    const session = await auth()
 
     if (!session?.user?.id) {
       return apiError("未授权", 401)
@@ -73,14 +74,14 @@ export async function PUT(
     const { name, description } = body
 
     // 验证权限
-    const access = await validateFamilyAccess(session.user.id, params.id)
+    const access = await validateFamilyAccess(session.user.id, id)
 
     if (!access.canManage) {
       return apiError("无权限编辑家庭信息", 403)
     }
 
     const family = await prisma.family.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...(name && { name }),
         ...(description !== undefined && { description }),
@@ -100,24 +101,25 @@ export async function PUT(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const { id } = await params
+    const session = await auth()
 
     if (!session?.user?.id) {
       return apiError("未授权", 401)
     }
 
     // 验证权限 - 只有 owner 可以删除
-    const access = await validateFamilyAccess(session.user.id, params.id)
+    const access = await validateFamilyAccess(session.user.id, id)
 
     if (!access.isOwner) {
       return apiError("只有家庭所有者可以删除家庭", 403)
     }
 
     await prisma.family.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     // 更新用户的当前家庭
