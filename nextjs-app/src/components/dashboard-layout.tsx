@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useStore } from "@/store/use-store"
 import { AppSidebar } from "./app-sidebar"
 import { AppHeader } from "./app-header"
+import { DatabaseInitAlert } from "./database-init-alert"
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
@@ -41,7 +42,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <AppSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <AppHeader />
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-6">
+          <DatabaseInitAlert />
+          {children}
+        </main>
       </div>
     </div>
   )

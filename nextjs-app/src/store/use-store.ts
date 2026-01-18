@@ -150,6 +150,8 @@ interface AppStore {
   // UI State
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
+  dbInitNeeded: boolean
+  setDbInitNeeded: (needed: boolean) => void
 
   // API Methods
   fetchFamilies: () => Promise<void>
@@ -199,14 +201,33 @@ export const useStore = create<AppStore>()(
       // UI State
       sidebarOpen: true,
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      dbInitNeeded: false,
+      setDbInitNeeded: (needed) => set({ dbInitNeeded: needed }),
 
       // API Methods
       fetchFamilies: async () => {
-        const data = await apiRequest<{ families: Family[] }>("/families")
-        set({ families: data.families })
-        if (data.families.length > 0 && !get().currentFamily) {
-          const current = data.families.find((f) => f.id === get().user?.familyId) || data.families[0]
-          set({ currentFamily: current })
+        try {
+          const res = await fetch(`${API_BASE}/families`)
+          const data = await res.json()
+
+          // 检查是否是数据库未初始化错误
+          if (data.error === "DATABASE_NOT_INITIALIZED" || res.status === 503) {
+            set({ dbInitNeeded: true })
+            return
+          }
+
+          if (!res.ok) {
+            throw new Error(data.error || "获取家庭列表失败")
+          }
+
+          set({ families: data.families, dbInitNeeded: false })
+          if (data.families.length > 0 && !get().currentFamily) {
+            const current = data.families.find((f) => f.id === get().user?.familyId) || data.families[0]
+            set({ currentFamily: current })
+          }
+        } catch (error) {
+          console.error("获取家庭列表失败:", error)
+          throw error
         }
       },
 

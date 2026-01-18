@@ -6,11 +6,46 @@ import { nanoid } from "nanoid"
 import { validateFamilyAccess, apiError, apiSuccess } from "@/lib/permissions"
 
 /**
+ * 检查数据库表是否存在
+ */
+async function checkDatabaseTables(): Promise<boolean> {
+  try {
+    // 尝试查询 User 表来验证数据库是否已初始化
+    await prisma.user.findFirst()
+    return true
+  } catch (error: any) {
+    // 检查错误消息是否表明表不存在
+    if (
+      error.code === "P2021" || // Prisma table not found
+      error.message?.includes("relation") ||
+      error.message?.includes("does not exist")
+    ) {
+      return false
+    }
+    // 其他错误也返回 false
+    return false
+  }
+}
+
+/**
  * 获取用户的家庭列表
  * GET /api/families
  */
 export async function GET(req: NextRequest) {
   try {
+    // 检查数据库是否已初始化
+    const dbReady = await checkDatabaseTables()
+    if (!dbReady) {
+      return NextResponse.json(
+        {
+          error: "DATABASE_NOT_INITIALIZED",
+          message: "数据库尚未初始化。请访问 /api/db/init 查看详情",
+          needsInit: true,
+        },
+        { status: 503 }
+      )
+    }
+
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {
@@ -54,6 +89,23 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    // 检查数据库是否已初始化
+    const dbReady = await checkDatabaseTables()
+    if (!dbReady) {
+      return NextResponse.json(
+        {
+          error: "DATABASE_NOT_INITIALIZED",
+          message: "数据库尚未初始化。请先运行数据库初始化命令",
+          needsInit: true,
+          instructions: [
+            "方法 1: 在本地运行 npx prisma db push",
+            "方法 2: 在 Vercel 项目设置中添加环境变量后重新部署",
+          ],
+        },
+        { status: 503 }
+      )
+    }
+
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.id) {

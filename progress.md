@@ -87,6 +87,7 @@
 |-----------|-------|---------|------------|
 | 2026-01-18 | Prisma 7 directUrl error | 1 | 降级到 Prisma 6 |
 | 2026-01-18 | TransactionCategory self-relation error | 1 | 修复 family 关系指向 Family |
+| 2026-01-18 | Vercel 部署后创建家庭失败 | 1 | 添加数据库检查 API 和前端提示 |
 
 ## 5-Question Reboot Check
 | Question | Answer |
