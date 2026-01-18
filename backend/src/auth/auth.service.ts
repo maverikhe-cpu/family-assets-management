@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
+import { FamilyInitService } from '../families/family-init.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -10,6 +11,7 @@ export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private familyInitService: FamilyInitService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -26,7 +28,19 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    const payload = { email: user.email, sub: user.id, role: user.role };
+
+    // 确保用户有家庭
+    if (!user.familyId) {
+      await this.familyInitService.createDefaultFamilyForUser(user);
+    }
+
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
+      familyId: user.familyId || null,
+    };
+
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -34,6 +48,7 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
+        familyId: user.familyId,
       },
     };
   }
@@ -44,7 +59,14 @@ export class AuthService {
       ...registerDto,
       password: hashedPassword,
     });
-    const { password, ...result } = user;
+
+    // 为新用户创建默认家庭
+    await this.familyInitService.createDefaultFamilyForUser(user);
+
+    // 重新获取用户信息以包含 familyId
+    const updatedUser = await this.usersService.findOne(user.id);
+
+    const { password, ...result } = updatedUser;
     return result;
   }
 }

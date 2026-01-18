@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Request,
+  BadRequestException,
 } from '@nestjs/common';
 import { AssetsService } from './assets.service';
 import { CreateAssetDto } from './dto/create-asset.dto';
@@ -21,17 +22,24 @@ import type { RequestWithUser } from '../types/request.types';
 export class AssetsController {
   constructor(private readonly assetsService: AssetsService) {}
 
+  private getFamilyId(req: RequestWithUser): string {
+    if (!req.user.familyId) {
+      throw new BadRequestException('用户尚未加入家庭');
+    }
+    return req.user.familyId;
+  }
+
   @Post()
   create(@Request() req: RequestWithUser, @Body() createAssetDto: CreateAssetDto) {
     return this.assetsService.create({
       ...createAssetDto,
-      familyId: req.user.familyId,
+      familyId: this.getFamilyId(req),
     });
   }
 
   @Get()
   findAll(@Request() req: RequestWithUser) {
-    return this.assetsService.findAll(req.user.familyId);
+    return this.assetsService.findAll(this.getFamilyId(req));
   }
 
   @Get(':id')
@@ -51,12 +59,12 @@ export class AssetsController {
 
   @Get('categories/list')
   findCategories(@Request() req: RequestWithUser) {
-    return this.assetsService.findCategories(req.user.familyId);
+    return this.assetsService.findCategories(this.getFamilyId(req));
   }
 
   @Post('categories')
   createCategory(@Request() req: RequestWithUser, @Body() data: any) {
-    return this.assetsService.createCategory(req.user.familyId, data);
+    return this.assetsService.createCategory(this.getFamilyId(req), data);
   }
 
   @Get(':id/changes')

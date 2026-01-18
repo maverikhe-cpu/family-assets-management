@@ -36,10 +36,15 @@ export class FamiliesService {
   /**
    * 创建家庭
    */
-  async create(user: User, createFamilyDto: CreateFamilyDto): Promise<Family> {
+  async create(userId: string, createFamilyDto: CreateFamilyDto): Promise<Family> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
     const family = this.familiesRepository.create({
       ...createFamilyDto,
-      createdBy: user.id,
+      createdBy: userId,
       inviteCode: this.generateInviteCode(),
     });
 
@@ -48,7 +53,7 @@ export class FamiliesService {
     // 创建者自动成为家庭所有者
     const ownerMember = this.familyMembersRepository.create({
       familyId: savedFamily.id,
-      userId: user.id,
+      userId: userId,
       role: FamilyMemberRole.OWNER,
     });
     await this.familyMembersRepository.save(ownerMember);
@@ -57,15 +62,15 @@ export class FamiliesService {
     user.familyId = savedFamily.id;
     await this.usersRepository.save(user);
 
-    return this.findOne(savedFamily.id, user.id);
+    return this.findOne(savedFamily.id, userId);
   }
 
   /**
    * 获取用户的所有家庭
    */
-  async findAll(user: User): Promise<Family[]> {
+  async findAll(userId: string): Promise<Family[]> {
     const memberships = await this.familyMembersRepository.find({
-      where: { userId: user.id },
+      where: { userId },
       relations: ['family'],
     });
 
@@ -325,9 +330,14 @@ export class FamiliesService {
    * 通过邀请码加入家庭
    */
   async joinByInviteCode(
-    user: User,
+    userId: string,
     inviteCode: string,
   ): Promise<FamilyMember> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
     const family = await this.familiesRepository.findOne({
       where: { inviteCode },
     });
@@ -338,7 +348,7 @@ export class FamiliesService {
 
     // 检查是否已是成员
     const existingMember = await this.familyMembersRepository.findOne({
-      where: { familyId: family.id, userId: user.id },
+      where: { familyId: family.id, userId },
     });
 
     if (existingMember) {
@@ -347,7 +357,7 @@ export class FamiliesService {
 
     const newMember = this.familyMembersRepository.create({
       familyId: family.id,
-      userId: user.id,
+      userId,
       role: FamilyMemberRole.MEMBER,
     });
 
@@ -360,7 +370,7 @@ export class FamiliesService {
     }
 
     return this.familyMembersRepository.findOne({
-      where: { familyId: family.id, userId: user.id },
+      where: { familyId: family.id, userId },
       relations: ['family'],
     }) as Promise<FamilyMember>;
   }
@@ -368,10 +378,15 @@ export class FamiliesService {
   /**
    * 切换当前家庭
    */
-  async switchFamily(user: User, familyId: string): Promise<User> {
+  async switchFamily(userId: string, familyId: string): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('用户不存在');
+    }
+
     // 验证用户是否是该家庭成员
     const membership = await this.familyMembersRepository.findOne({
-      where: { familyId, userId: user.id },
+      where: { familyId, userId },
     });
 
     if (!membership) {

@@ -9,6 +9,7 @@ import {
   UseGuards,
   Request,
   Query,
+  BadRequestException,
 } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -22,22 +23,29 @@ import type { RequestWithUser } from '../types/request.types';
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
+  private getFamilyId(req: RequestWithUser): string {
+    if (!req.user.familyId) {
+      throw new BadRequestException('用户尚未加入家庭');
+    }
+    return req.user.familyId;
+  }
+
   @Post()
   create(@Request() req: RequestWithUser, @Body() createTransactionDto: CreateTransactionDto) {
     return this.transactionsService.create({
       ...createTransactionDto,
-      familyId: req.user.familyId,
+      familyId: this.getFamilyId(req),
     });
   }
 
   @Get()
   findAll(@Request() req: RequestWithUser) {
-    return this.transactionsService.findAll(req.user.familyId);
+    return this.transactionsService.findAll(this.getFamilyId(req));
   }
 
   @Get('statistics')
   getStatistics(@Request() req: RequestWithUser) {
-    return this.transactionsService.getStatistics(req.user.familyId);
+    return this.transactionsService.getStatistics(this.getFamilyId(req));
   }
 
   @Get(':id')
@@ -57,11 +65,11 @@ export class TransactionsController {
 
   @Get('categories/list')
   findCategories(@Request() req: RequestWithUser, @Query('type') type?: 'income' | 'expense') {
-    return this.transactionsService.findCategories(req.user.familyId, type);
+    return this.transactionsService.findCategories(this.getFamilyId(req), type);
   }
 
   @Post('categories')
   createCategory(@Request() req: RequestWithUser, @Body() data: any) {
-    return this.transactionsService.createCategory(req.user.familyId, data);
+    return this.transactionsService.createCategory(this.getFamilyId(req), data);
   }
 }

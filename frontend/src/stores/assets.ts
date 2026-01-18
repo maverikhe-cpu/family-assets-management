@@ -2,15 +2,11 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Asset, AssetCategory, AssetChange, AssetStatistics, AssetDistribution, AssetChangeStatistics, AssetChangeType } from '@/types'
 import * as db from '@/db'
-import { api } from '@/api/client'
 import { convertCurrency } from '@/utils/currency'
 import dayjs from 'dayjs'
 
 // 基准货币
 const BASE_CURRENCY = 'CNY'
-
-// 是否使用后端 API
-const USE_API = true
 
 export const useAssetStore = defineStore('assets', () => {
   // 状态
@@ -125,28 +121,7 @@ export const useAssetStore = defineStore('assets', () => {
   }
 
   async function loadCategories() {
-    if (USE_API) {
-      try {
-        const data = await api.assets.getCategories()
-        // Transform backend data to frontend format
-        categories.value = data.map((cat: any) => ({
-          id: cat.id,
-          name: cat.name,
-          parentId: cat.parentId,
-          icon: cat.icon,
-          color: cat.color,
-          isBuiltin: cat.isBuiltin,
-          order: cat.order,
-          createdAt: cat.createdAt,
-          updatedAt: cat.updatedAt
-        }))
-      } catch (error) {
-        console.error('Failed to load categories from API, falling back to local DB:', error)
-        categories.value = await db.db.assetCategories.toArray()
-      }
-    } else {
-      categories.value = await db.db.assetCategories.toArray()
-    }
+    categories.value = await db.db.assetCategories.toArray()
   }
 
   async function loadChanges(assetId?: string) {

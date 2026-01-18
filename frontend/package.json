@@ -14,7 +14,6 @@
   "dependencies": {
     "@iconify/vue": "^5.0.0",
     "@vueuse/core": "^14.1.0",
-    "axios": "^1.13.2",
     "chart.js": "^4.5.1",
     "dayjs": "^1.11.19",
     "dexie": "^4.2.1",

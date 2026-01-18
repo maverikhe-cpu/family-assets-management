@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AssetCategory } from '../../assets/entities/asset-category.entity';
-import { TransactionCategory, CategoryType } from '../../transactions/entities/transaction-category.entity';
-import { User, UserRole } from '../../users/entities/user.entity';
+import { TransactionCategory } from '../../transactions/entities/transaction-category.entity';
+import { User } from '../../users/entities/user.entity';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -36,7 +36,7 @@ export class SeedService {
         password: hashedPassword,
         email: 'owner@example.com',
         name: '本人',
-        role: UserRole.OWNER,
+        role: 'owner',
         color: '#3B82F6',
         order: 1,
       },
@@ -46,7 +46,7 @@ export class SeedService {
         password: hashedPassword,
         email: 'spouse@example.com',
         name: '配偶',
-        role: UserRole.SPOUSE,
+        role: 'spouse',
         color: '#EC4899',
         order: 2,
       },
@@ -56,7 +56,7 @@ export class SeedService {
         password: hashedPassword,
         email: 'child1@example.com',
         name: '子女1',
-        role: UserRole.CHILD,
+        role: 'child',
         color: '#10B981',
         order: 3,
       },
@@ -72,10 +72,10 @@ export class SeedService {
 
     // Create parent categories
     const parentCategories = [
-      { name: '固定资产', parentId: undefined as any, icon: '🏠', color: '#8B5CF6', isBuiltin: true, order: 1 },
-      { name: '流动资产', parentId: undefined as any, icon: '💰', color: '#10B981', isBuiltin: true, order: 2 },
-      { name: '投资资产', parentId: undefined as any, icon: '📈', color: '#F59E0B', isBuiltin: true, order: 3 },
-      { name: '负债', parentId: undefined as any, icon: '📉', color: '#EF4444', isBuiltin: true, order: 4 },
+      { name: '固定资产', parentId: null, icon: '🏠', color: '#8B5CF6', isBuiltin: true, order: 1 },
+      { name: '流动资产', parentId: null, icon: '💰', color: '#10B981', isBuiltin: true, order: 2 },
+      { name: '投资资产', parentId: null, icon: '📈', color: '#F59E0B', isBuiltin: true, order: 3 },
+      { name: '负债', parentId: null, icon: '📉', color: '#EF4444', isBuiltin: true, order: 4 },
     ];
 
     const savedParents = await this.assetCategoriesRepository.save(parentCategories);
@@ -112,23 +112,23 @@ export class SeedService {
     if (count > 0) return;
 
     const incomeCategories = [
-      { name: '工资', type: CategoryType.INCOME, parentId: undefined as any, icon: '💼', color: '#10B981', isBuiltin: true, order: 1 },
-      { name: '奖金', type: CategoryType.INCOME, parentId: undefined as any, icon: '🎁', color: '#10B981', isBuiltin: true, order: 2 },
-      { name: '投资收益', type: CategoryType.INCOME, parentId: undefined as any, icon: '📈', color: '#10B981', isBuiltin: true, order: 3 },
-      { name: '兼职收入', type: CategoryType.INCOME, parentId: undefined as any, icon: '💰', color: '#10B981', isBuiltin: true, order: 4 },
-      { name: '其他收入', type: CategoryType.INCOME, parentId: undefined as any, icon: '📥', color: '#10B981', isBuiltin: true, order: 5 },
+      { name: '工资', type: 'income', parentId: null, icon: '💼', color: '#10B981', isBuiltin: true, order: 1 },
+      { name: '奖金', type: 'income', parentId: null, icon: '🎁', color: '#10B981', isBuiltin: true, order: 2 },
+      { name: '投资收益', type: 'income', parentId: null, icon: '📈', color: '#10B981', isBuiltin: true, order: 3 },
+      { name: '兼职收入', type: 'income', parentId: null, icon: '💰', color: '#10B981', isBuiltin: true, order: 4 },
+      { name: '其他收入', type: 'income', parentId: null, icon: '📥', color: '#10B981', isBuiltin: true, order: 5 },
     ];
 
     const expenseCategories = [
-      { name: '餐饮', type: CategoryType.EXPENSE, parentId: undefined as any, icon: '🍜', color: '#F59E0B', isBuiltin: true, order: 1 },
-      { name: '交通', type: CategoryType.EXPENSE, parentId: undefined as any, icon: '🚗', color: '#F59E0B', isBuiltin: true, order: 2 },
-      { name: '购物', type: CategoryType.EXPENSE, parentId: undefined as any, icon: '🛍️', color: '#F59E0B', isBuiltin: true, order: 3 },
-      { name: '娱乐', type: CategoryType.EXPENSE, parentId: undefined as any, icon: '🎮', color: '#F59E0B', isBuiltin: true, order: 4 },
-      { name: '医疗', type: CategoryType.EXPENSE, parentId: undefined as any, icon: '💊', color: '#F59E0B', isBuiltin: true, order: 5 },
-      { name: '教育', type: CategoryType.EXPENSE, parentId: undefined as any, icon: '📚', color: '#F59E0B', isBuiltin: true, order: 6 },
-      { name: '居住', type: CategoryType.EXPENSE, parentId: undefined as any, icon: '🏠', color: '#F59E0B', isBuiltin: true, order: 7 },
-      { name: '通讯', type: CategoryType.EXPENSE, parentId: undefined as any, icon: '📱', color: '#F59E0B', isBuiltin: true, order: 8 },
-      { name: '其他支出', type: CategoryType.EXPENSE, parentId: undefined as any, icon: '📤', color: '#F59E0B', isBuiltin: true, order: 9 },
+      { name: '餐饮', type: 'expense', parentId: null, icon: '🍜', color: '#F59E0B', isBuiltin: true, order: 1 },
+      { name: '交通', type: 'expense', parentId: null, icon: '🚗', color: '#F59E0B', isBuiltin: true, order: 2 },
+      { name: '购物', type: 'expense', parentId: null, icon: '🛍️', color: '#F59E0B', isBuiltin: true, order: 3 },
+      { name: '娱乐', type: 'expense', parentId: null, icon: '🎮', color: '#F59E0B', isBuiltin: true, order: 4 },
+      { name: '医疗', type: 'expense', parentId: null, icon: '💊', color: '#F59E0B', isBuiltin: true, order: 5 },
+      { name: '教育', type: 'expense', parentId: null, icon: '📚', color: '#F59E0B', isBuiltin: true, order: 6 },
+      { name: '居住', type: 'expense', parentId: null, icon: '🏠', color: '#F59E0B', isBuiltin: true, order: 7 },
+      { name: '通讯', type: 'expense', parentId: null, icon: '📱', color: '#F59E0B', isBuiltin: true, order: 8 },
+      { name: '其他支出', type: 'expense', parentId: null, icon: '📤', color: '#F59E0B', isBuiltin: true, order: 9 },
     ];
 
     await this.transactionCategoriesRepository.save([...incomeCategories, ...expenseCategories]);

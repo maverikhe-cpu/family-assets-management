@@ -1,6 +1,13 @@
 import { Express } from 'express';
-import { User } from '../users/entities/user.entity';
+
+export interface JwtPayload {
+  userId: string;
+  email: string;
+  role: string;
+  familyId?: string | null;
+  familyRole?: string | null;
+}
 
 export interface RequestWithUser extends Express.Request {
-  user: User;
+  user: JwtPayload;
 }

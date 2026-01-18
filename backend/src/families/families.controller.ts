@@ -30,7 +30,7 @@ export class FamiliesController {
    */
   @Post()
   async create(@Request() req: RequestWithUser, @Body() createFamilyDto: CreateFamilyDto) {
-    const family = await this.familiesService.create(req.user, createFamilyDto);
+    const family = await this.familiesService.create(req.user.userId, createFamilyDto);
     return {
       id: family.id,
       name: family.name,
@@ -46,7 +46,7 @@ export class FamiliesController {
    */
   @Get()
   async findAll(@Request() req: RequestWithUser) {
-    const families = await this.familiesService.findAll(req.user);
+    const families = await this.familiesService.findAll(req.user.userId);
     return families.map((f) => ({
       id: f.id,
       name: f.name,
@@ -61,7 +61,7 @@ export class FamiliesController {
    */
   @Get(':id')
   async findOne(@Param('id') id: string, @Request() req: RequestWithUser) {
-    const family = await this.familiesService.findOne(id, req.user.id);
+    const family = await this.familiesService.findOne(id, req.user.userId);
     return family;
   }
 
@@ -77,7 +77,7 @@ export class FamiliesController {
   ) {
     const family = await this.familiesService.update(
       id,
-      req.user.id,
+      req.user.userId,
       updateFamilyDto,
     );
     return {
@@ -95,7 +95,7 @@ export class FamiliesController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') id: string, @Request() req: RequestWithUser) {
-    await this.familiesService.remove(id, req.user.id);
+    await this.familiesService.remove(id, req.user.userId);
   }
 
   /**
@@ -110,7 +110,7 @@ export class FamiliesController {
   ) {
     const member = await this.familiesService.addMember(
       id,
-      req.user.id,
+      req.user.userId,
       addMemberDto,
     );
     return member;
@@ -127,7 +127,7 @@ export class FamiliesController {
     @Param('userId') userId: string,
     @Request() req: RequestWithUser,
   ) {
-    await this.familiesService.removeMember(id, req.user.id, userId);
+    await this.familiesService.removeMember(id, req.user.userId, userId);
   }
 
   /**
@@ -143,7 +143,7 @@ export class FamiliesController {
   ) {
     const member = await this.familiesService.updateMemberRole(
       id,
-      req.user.id,
+      req.user.userId,
       userId,
       updateMemberRoleDto,
     );
@@ -160,7 +160,7 @@ export class FamiliesController {
     @Request() req: RequestWithUser,
   ) {
     const member = await this.familiesService.joinByInviteCode(
-      req.user,
+      req.user.userId,
       inviteCode,
     );
     return {
@@ -175,7 +175,7 @@ export class FamiliesController {
    */
   @Post(':id/switch')
   async switchFamily(@Param('id') id: string, @Request() req: RequestWithUser) {
-    const user = await this.familiesService.switchFamily(req.user, id);
+    const user = await this.familiesService.switchFamily(req.user.userId, id);
     return {
       familyId: user.familyId,
     };
