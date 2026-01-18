@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsEnum, IsOptional, IsObject } from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsOptional, IsObject, IsUUID } from 'class-validator';
 import { AssetStatus } from '../entities/asset.entity';
 
 export class CreateAssetDto {
@@ -7,6 +7,10 @@ export class CreateAssetDto {
 
   @IsString()
   categoryId: string;
+
+  @IsUUID()
+  @IsOptional()
+  familyId?: string;
 
   @IsString()
   holderId: string;

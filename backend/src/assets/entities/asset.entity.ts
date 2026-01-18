@@ -18,6 +18,9 @@ export class Asset extends BaseEntity {
   categoryId: string;
 
   @Column()
+  familyId: string;
+
+  @Column()
   holderId: string;
 
   @Column({ type: 'decimal', precision: 12, scale: 2 })
@@ -33,7 +36,7 @@ export class Asset extends BaseEntity {
   purchaseDate: Date;
 
   @Column({
-    type: 'simple-enum',
+    type: 'enum',
     enum: AssetStatus,
     default: AssetStatus.ACTIVE,
   })

@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Asset } from './entities/asset.entity';
 import { AssetCategory } from './entities/asset-category.entity';
-import { AssetChange, AssetChangeType } from './entities/asset-change.entity';
+import { AssetChange } from './entities/asset-change.entity';
 import { CreateAssetDto } from './dto/create-asset.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 
@@ -19,18 +19,19 @@ export class AssetsService {
   ) {}
 
   async create(createAssetDto: CreateAssetDto): Promise<Asset> {
-    const asset = this.assetsRepository.create(createAssetDto);
+    const asset = this.assetsRepository.create({
+      ...createAssetDto,
+      familyId: createAssetDto.familyId,
+    });
     return this.assetsRepository.save(asset);
   }
 
-  async findAll(userId?: string): Promise<Asset[]> {
-    if (userId) {
-      return this.assetsRepository.find({
-        where: { holderId: userId },
-        relations: ['holder'],
-      });
-    }
-    return this.assetsRepository.find({ relations: ['holder'] });
+  async findAll(familyId: string): Promise<Asset[]> {
+    return this.assetsRepository.find({
+      where: { familyId },
+      relations: ['holder'],
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findOne(id: string): Promise<Asset> {
@@ -52,17 +53,13 @@ export class AssetsService {
     const updated = await this.assetsRepository.save(asset);
 
     // 记录估值变动
-    if ('currentValue' in updateAssetDto && updateAssetDto.currentValue !== undefined && updateAssetDto.currentValue !== beforeValue) {
-      const profitLoss = updateAssetDto.currentValue - beforeValue;
-      const profitLossRate = beforeValue > 0 ? (profitLoss / beforeValue) * 100 : 0;
+    if (updateAssetDto.currentValue !== undefined && updateAssetDto.currentValue !== beforeValue) {
       await this.changesRepository.save({
         assetId: id,
-        type: AssetChangeType.VALUATION_ADJUST,
+        type: 'valuation_adjust',
         amount: updateAssetDto.currentValue - beforeValue,
         beforeValue,
         afterValue: updateAssetDto.currentValue,
-        profitLoss,
-        profitLossRate,
         date: new Date(),
       });
     }
@@ -76,12 +73,18 @@ export class AssetsService {
   }
 
   // 资产分类
-  async findCategories(): Promise<AssetCategory[]> {
-    return this.categoriesRepository.find({ order: { order: 'ASC' } });
+  async findCategories(familyId: string): Promise<AssetCategory[]> {
+    return this.categoriesRepository.find({
+      where: { familyId },
+      order: { order: 'ASC' },
+    });
   }
 
-  async createCategory(data: Partial<AssetCategory>): Promise<AssetCategory> {
-    const category = this.categoriesRepository.create(data);
+  async createCategory(familyId: string, data: Partial<AssetCategory>): Promise<AssetCategory> {
+    const category = this.categoriesRepository.create({
+      ...data,
+      familyId,
+    });
     return this.categoriesRepository.save(category);
   }
 

@@ -16,19 +16,16 @@ export class TransactionsService {
   ) {}
 
   async create(createTransactionDto: CreateTransactionDto): Promise<Transaction> {
-    const transaction = this.transactionsRepository.create(createTransactionDto);
+    const transaction = this.transactionsRepository.create({
+      ...createTransactionDto,
+      familyId: createTransactionDto.familyId,
+    });
     return this.transactionsRepository.save(transaction);
   }
 
-  async findAll(userId?: string): Promise<Transaction[]> {
-    if (userId) {
-      return this.transactionsRepository.find({
-        where: { memberId: userId },
-        relations: ['member'],
-        order: { date: 'DESC' },
-      });
-    }
+  async findAll(familyId: string): Promise<Transaction[]> {
     return this.transactionsRepository.find({
+      where: { familyId },
       relations: ['member'],
       order: { date: 'DESC' },
     });
@@ -57,22 +54,28 @@ export class TransactionsService {
   }
 
   // 交易分类
-  async findCategories(type?: 'income' | 'expense'): Promise<TransactionCategory[]> {
-    const where = type ? { type: type as CategoryType } : {};
+  async findCategories(familyId: string, type?: 'income' | 'expense'): Promise<TransactionCategory[]> {
+    const where: any = { familyId };
+    if (type) {
+      where.type = type as CategoryType;
+    }
     return this.categoriesRepository.find({
       where,
       order: { order: 'ASC' },
     });
   }
 
-  async createCategory(data: Partial<TransactionCategory>): Promise<TransactionCategory> {
-    const category = this.categoriesRepository.create(data);
+  async createCategory(familyId: string, data: Partial<TransactionCategory>): Promise<TransactionCategory> {
+    const category = this.categoriesRepository.create({
+      ...data,
+      familyId,
+    });
     return this.categoriesRepository.save(category);
   }
 
   // 统计
-  async getStatistics(userId: string) {
-    const transactions = await this.findAll(userId);
+  async getStatistics(familyId: string) {
+    const transactions = await this.findAll(familyId);
 
     const income = transactions
       .filter(t => t.type === 'income')

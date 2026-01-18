@@ -11,7 +11,7 @@ export enum TransactionType {
 @Entity('transactions')
 export class Transaction extends BaseEntity {
   @Column({
-    type: 'simple-enum',
+    type: 'enum',
     enum: TransactionType,
   })
   type: TransactionType;
@@ -24,6 +24,9 @@ export class Transaction extends BaseEntity {
 
   @Column()
   accountId: string;
+
+  @Column()
+  familyId: string;
 
   @Column()
   memberId: string;

@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsEnum, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsOptional, IsArray, IsUUID } from 'class-validator';
 import { TransactionType } from '../entities/transaction.entity';
 
 export class CreateTransactionDto {
@@ -13,6 +13,10 @@ export class CreateTransactionDto {
 
   @IsString()
   accountId: string;
+
+  @IsUUID()
+  @IsOptional()
+  familyId?: string;
 
   @IsString()
   memberId: string;

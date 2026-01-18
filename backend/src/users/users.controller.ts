@@ -12,14 +12,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-
-interface RequestWithUser extends Request {
-  user: {
-    userId: string;
-    username: string;
-    role: string;
-  };
-}
+import type { RequestWithUser } from '../types/request.types';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard)
