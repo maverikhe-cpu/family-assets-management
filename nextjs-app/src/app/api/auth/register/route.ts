@@ -3,6 +3,9 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { nanoid } from "nanoid"
 
+// 强制使用 Node.js runtime (bcrypt 需要)
+export const runtime = "nodejs"
+
 /**
  * 注册新用户
  * POST /api/auth/register
@@ -71,7 +74,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("Register error:", error)
     return NextResponse.json(
-      { error: "注册失败" },
+      { error: (error as Error).message || "注册失败" },
       { status: 500 }
     )
   }

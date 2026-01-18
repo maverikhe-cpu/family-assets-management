@@ -22,21 +22,43 @@ export default function SignInPage() {
     setError("")
     setLoading(true)
 
+    console.log("Starting login...")
+
     try {
-      const result = await signIn("credentials", {
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => {
+          console.error("Login timeout")
+          reject(new Error("登录超时，请检查网络连接"))
+        }, 15000)
+      )
+
+      console.log("Calling signIn with:", { email })
+
+      const signInPromise = signIn("credentials", {
         email,
         password,
         redirect: false,
       })
 
+      const result = await Promise.race([signInPromise, timeoutPromise]) as any
+
+      console.log("SignIn result:", result)
+
       if (result?.error) {
+        console.error("Login error:", result.error)
         setError(result.error)
       } else if (result?.ok) {
+        console.log("Login successful, redirecting...")
         router.push("/dashboard")
         router.refresh()
+      } else {
+        console.error("Unexpected result:", result)
+        setError("登录失败，请检查邮箱和密码")
       }
-    } catch (err) {
-      setError("登录失败，请重试")
+    } catch (err: any) {
+      console.error("Login exception:", err)
+      setError(err?.message || "登录失败，请重试")
     } finally {
       setLoading(false)
     }

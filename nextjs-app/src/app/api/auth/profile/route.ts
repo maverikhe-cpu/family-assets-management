@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
-import { auth } from "@/auth"
+
+// Force Node.js runtime for Prisma
+export const runtime = "nodejs"
+import { auth } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 
 /**

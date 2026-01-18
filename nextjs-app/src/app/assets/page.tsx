@@ -1,5 +1,8 @@
 "use client"
 
+// Force dynamic rendering for auth pages
+export const dynamic = "force-dynamic"
+
 import { useEffect, useState } from "react"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

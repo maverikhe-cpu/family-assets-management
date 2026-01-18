@@ -9,3 +9,5 @@ dist
 .env.local
 coverage
 .cache
+.vercel
+.env*.local

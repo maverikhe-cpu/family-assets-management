@@ -1,4 +1,4 @@
-import { auth } from "@/auth"
+import { auth } from "@/lib/auth"
 import { prisma } from "./prisma"
 
 export type FamilyRole = "owner" | "admin" | "member" | "viewer"
